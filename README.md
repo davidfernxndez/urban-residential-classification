@@ -1,5 +1,5 @@
 # Urban Residential Classification using Explainable Machine Learning
-## Automatic Detection of Residential Typologies and Enclosure Patterns: A Comparison Between Interpretability and Predictive Performance
+## Automatic Detection of Residential Typologies and Enclosure Patterns: A Comparison Between Interpretability and Performance
 
 ## Project Overview
 

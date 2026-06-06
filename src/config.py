@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 @dataclass(frozen=True)
@@ -19,13 +19,19 @@ class Config:
     
     # Output folder
     OUTPUT_DIR: Path = ROOT_DIR /"output"
-    NESTED_CV_RESULTS_DIR = OUTPUT_DIR /"nested_cv_results/"    
-    
+      
     ######################
     # DATASET INFORMATION
     ######################
     ID_VARIABLE: str = "CC"
     TARGET_VARIABLE: str = "URB"
+    TARGET_LABEL_MAP: dict = field(default_factory=lambda: {
+            1: "Protegido",
+            2: "Controlado",
+            3: "Autoaislado",
+            4: "Individualista",
+            5: "Simbólico"
+        })
 
     ##########################
     # NESTED CROSS-VALIDATION

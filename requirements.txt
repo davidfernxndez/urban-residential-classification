@@ -18,3 +18,4 @@ contextily==1.7.0
 
 # --- Aprendizaje Automático (Machine Learning) ---
 scikit-learn==1.8.0
+xgboost==2.0.3
