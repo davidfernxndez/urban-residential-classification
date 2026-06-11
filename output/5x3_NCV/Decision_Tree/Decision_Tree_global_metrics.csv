@@ -1,0 +1,6 @@
+,model_name,outer_fold,f1_macro,MCC,accuracy,best_params
+0,Decision_Tree,0,0.8509262527478846,0.8372445483871609,0.8837209302325582,"{'model__criterion': 'entropy', 'model__max_leaf_nodes': 10, 'model__min_samples_leaf': 5}"
+1,Decision_Tree,1,0.8554643313264002,0.8582180753079878,0.8992248062015504,"{'model__criterion': 'gini', 'model__max_leaf_nodes': 15, 'model__min_samples_leaf': 5}"
+2,Decision_Tree,2,0.83640521114106,0.8436859569374358,0.890625,"{'model__criterion': 'entropy', 'model__max_leaf_nodes': 15, 'model__min_samples_leaf': 5}"
+3,Decision_Tree,3,0.8638763764521661,0.9000462115589366,0.9296875,"{'model__criterion': 'gini', 'model__max_leaf_nodes': 15, 'model__min_samples_leaf': 5}"
+4,Decision_Tree,4,0.8103647174493188,0.8326995398659675,0.8828125,"{'model__criterion': 'entropy', 'model__max_leaf_nodes': 10, 'model__min_samples_leaf': 5}"

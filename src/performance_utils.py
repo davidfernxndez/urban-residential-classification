@@ -18,6 +18,7 @@ import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
 from IPython.display import display
+import mlflow
 
 from sklearn.model_selection import GridSearchCV
 from sklearn.preprocessing import LabelEncoder
@@ -34,6 +35,7 @@ from sklearn.metrics import (
 # ==============================================================================
 # PERFORMANCE EXPERIMENT USING NESTED CROSS VALIDATION
 # ==============================================================================
+
 
 def performance_experiment(
         config,
@@ -416,7 +418,7 @@ def performance_experiment(
     # Create output folder for the current nested cv configuration
     output_custom_dir = os.path.join(
         output_dir,
-        f"outer_folds_{outer_splits}_inner_folds_{inner_splits}",
+        f"{outer_splits}x{inner_splits}_NCV",
         f"{experiment_name}"
     )
     os.makedirs(output_custom_dir, exist_ok=True)
@@ -425,13 +427,13 @@ def performance_experiment(
     print(f"Output directory: {output_custom_dir}")
 
     global_results_df.to_csv(
-        os.path.join(output_custom_dir, f"{experiment_name}_global_results.csv")
+        os.path.join(output_custom_dir, f"{experiment_name}_global_metrics.csv")
     )
     cm_df.to_csv(
         os.path.join(output_custom_dir, f"{experiment_name}_confusion_matrix.csv")
     )
     class_report_df.to_csv(
-        os.path.join(output_custom_dir, f"{experiment_name}_classification_report.csv"),
+        os.path.join(output_custom_dir, f"{experiment_name}_class_metrics.csv"),
         index=False
     )
 
@@ -440,6 +442,448 @@ def performance_experiment(
     return global_results_df, cm_df, class_report_df
 
 
+def performance_experiment_mlflow(
+        config,
+        pipeline,
+        param_grid,
+        experiment_name,
+        gridsearch_metric = "f1_macro",
+        use_balanced_weights=False
+    ):
+    """    
+    This function performs the same experiment as the performance_experiment() function
+    but also uses the MLFlow service to record all metrics and experiments.
+    
+    Parameters
+    ----------
+    config : object
+        Configuration object containing:
+        - DATASET_PATH : Path to input dataset CSV file
+        - DATA_FOLDS_DIR : Directory containing precomputed fold CSV files
+        - OUTPUT_DIR : Directory where results will be saved
+        - OUTER_SPLITS : Number of outer CV folds
+        - INNER_SPLITS : Number of inner CV folds
+        - OUTER_FOLD_FILENAME: Name of outer folds file.
+        - INNER_FOLD_PREFIX: Prefix for inner fold files.
+        - ID_VARIABLE : Unique identifier column name 
+        - TARGET_VARIABLE : Target variable column name 
+    
+    pipeline : sklearn.pipeline.Pipeline
+        Machine learning pipeline that includes preprocessing steps
+        and the final estimator.
+    
+    param_grid : dict
+        Dictionary defining hyperparameter search space for the estimator
+        inside the pipeline. Used in GridSearchCV during the inner loop.
+    
+    experiment_name : str
+        Name of the experiment used to label and store output files.
+    
+    gridsearch_metric: str [optional, default="f1_macro"]
+        Metric to optimize in the search of hyperparameters
+    
+    use_balanced_weights: bool [optional, default="false]
+            Indicates if balanced sample weights are computed from the training
+            data of each fold.
+
+    Returns
+    -------
+    global_results_df : pandas.DataFrame
+        DataFrame containing aggregated performance metrics per outer fold,
+        including macro F1-score, MCC and accuracy. It also includes best
+        hyperparameters for each fold.
+    
+    cm_df : pandas.DataFrame
+        DataFrame containing accumulated confusion matrix.
+    
+    class_report_df : pandas.DataFrame
+        DataFrame containing accumulated classification report:
+        f1-score, precision and recall values for each class.
+    """
+    # =========================================================
+    # LOAD CONFIGURATION VARIABLES
+    # =========================================================
+    # Path and folders 
+    dataset_path = config.DATASET_PATH
+    folds_dir = config.DATA_FOLDS_DIR
+    output_dir = config.OUTPUT_DIR
+    
+    # Nested Cross Validation splits size
+    outer_splits = config.OUTER_SPLITS
+    inner_splits = config.INNER_SPLITS
+
+    # Nested Cross Validation folds filenames
+    outer_file_name = config.OUTER_FOLD_FILENAME
+    inner_prefix = config.INNER_FOLD_PREFIX
+
+    # Unique identifier (CC) and target variables 
+    id_variable = config.ID_VARIABLE
+    target_variable = config.TARGET_VARIABLE
+    
+    # =========================================================
+    # LOAD DATASET
+    # =========================================================
+    dataset_df = pd.read_csv(dataset_path)
+
+    # =========================================================
+    # LABEL ENCODING
+    # =========================================================
+
+    # Encode the K classes to the range of values ​​[0,..,K-1] so that
+    #  models like XGBoost can function correctly
+    label_encoder = LabelEncoder()
+    dataset_df[target_variable] = label_encoder.fit_transform(dataset_df[target_variable])
+
+    # =========================================================
+    # LOAD OUTER FOLDS
+    # =========================================================
+    outer_folds_df = pd.read_csv(
+        os.path.join(folds_dir, outer_file_name)
+    )
+    
+    # List to store global results 
+    global_results = []
+
+    # Lists to store labels and predictions for building
+    # accumulated confusion matrix
+    all_y_test = []
+    all_y_pred = []
+    
+    print("\n" + "=" * 70)
+    print("NESTED CROSS-VALIDATION EXPERIMENT")
+    print("=" * 70)
+    print(f"Experiment Name      : {experiment_name}")
+    print(f"Outer CV Folds       : {outer_splits}")
+    print(f"Inner CV Folds       : {inner_splits}")
+    print("\nHyperparameter Grid:")
+    for param_name, param_values in param_grid.items():
+        print(f"{param_name:<25}: {param_values}")
+    print("=" * 70)
+
+    # =========================================================
+    # MLFLOW EXPERIMENT SETUP
+    # =========================================================
+    mlflow.set_experiment(f"{config.OUTER_SPLITS}x{config.INNER_SPLITS}_NCV")
+
+    # Main Run experiment
+    with mlflow.start_run(run_name=experiment_name) as parent_run:
+        
+        # Register global configuration parameters
+        mlflow.log_param("model_name", experiment_name)
+        mlflow.log_param("outer_splits", outer_splits)
+        mlflow.log_param("inner_splits", inner_splits)
+        mlflow.log_param("gridsearch_metric", gridsearch_metric)
+        mlflow.log_text(str(param_grid), "param_grid.json")
+
+        start_time = time.time()
+        for outer_fold_idx in range(outer_splits):
+            
+            print("\n" + "-" * 80)
+            print(f"OUTER FOLD [{outer_fold_idx + 1}/{outer_splits}]")
+            print("-" * 80)
+            
+            # =====================================================
+            # OUTER TEST SET IDS
+            # =====================================================
+            # The samples used for the Outer Test Set are those 
+            # with the fold idx of the current outer_fold_idx
+            outer_test_ids = set(
+                outer_folds_df[
+                    outer_folds_df["outer_fold_idx"]
+                    == outer_fold_idx
+                ][id_variable]
+            )
+
+            # =====================================================
+            # OUTER TRAIN SET IDS
+            # =====================================================
+            # The Outer Train set consists of all samples with a different
+            # fold idx than the current outer_fold_idx
+            outer_train_ids = set(
+                outer_folds_df[
+                    outer_folds_df["outer_fold_idx"]
+                    != outer_fold_idx
+                ][id_variable]
+            )
+
+            # Build train/test dataframes with IDs
+            train_df = dataset_df[
+                dataset_df[id_variable].isin(outer_train_ids)
+            ].copy()
+
+            test_df = dataset_df[
+                dataset_df[id_variable].isin(outer_test_ids)
+            ].copy()
+
+            # Reset indexes for compatibility with sklearn gridsearch
+            train_df = train_df.reset_index(drop=True)
+            test_df = test_df.reset_index(drop=True)
+
+            # =====================================================
+            # TRAIN / TEST FEATURES & TARGET
+            # =====================================================
+
+            X_train = train_df.drop(
+                columns=[id_variable, target_variable]
+            )
+            y_train = train_df[target_variable]
+
+            X_test = test_df.drop(
+                columns=[id_variable, target_variable]
+            )
+            y_test = test_df[target_variable]
+
+            print(
+                f"Train samples: {len(X_train):5d} | "
+                f"Test samples: {len(X_test):5d}"
+            )
+            
+            # =====================================================
+            # CLASS WEIGHTS
+            # =====================================================
+            # Used for algorithms that dont`t support class_weight
+            # internal parameter`
+            fit_params = {}        
+            if use_balanced_weights:
+                sample_weights = compute_sample_weight(
+                    class_weight="balanced",
+                    y=y_train
+                )
+                fit_params["model__sample_weight"] = sample_weights
+                print("Using balanced sample weights")
+
+            # =====================================================
+            # LOAD INNER FOLDS
+            # =====================================================
+            inner_folds_df = pd.read_csv(
+                os.path.join(
+                    folds_dir,
+                    f"{inner_prefix}{outer_fold_idx}.csv"
+                )
+            )
+
+            # =====================================================
+            # MAP CC (ID variable) -> LOCAL TRAIN INDEX
+            # =====================================================
+            
+            # Map CC identifier to the indices of
+            # the outer CV training set since sklearn will use the indices
+            # of this dataset
+            cc_to_local_idx = {
+                cc: idx
+                for idx, cc in enumerate(train_df[id_variable])
+            }
+
+            # =====================================================
+            # BUILD CUSTOM INNER CV
+            # =====================================================
+            
+            # List to store tuples of train/val inner sets
+            custom_inner_cv = []
+
+            for inner_fold_idx in range(inner_splits):
+
+                # -------------------------------------------------
+                # INNER VALIDATION SET IDS
+                # -------------------------------------------------
+
+                val_ids = set(
+                    inner_folds_df[
+                        inner_folds_df["inner_fold_idx"]
+                        == inner_fold_idx
+                    ][id_variable]
+                )
+
+                # -------------------------------------------------
+                # INNER TRAIN SET IDS
+                # -------------------------------------------------
+
+                inner_train_ids = set(
+                    inner_folds_df[
+                        inner_folds_df["inner_fold_idx"]
+                        != inner_fold_idx
+                    ][id_variable]
+                )
+
+                # Map CC (ID variable) to local index in Outer Train set
+                val_idx = np.array([
+                    cc_to_local_idx[cc]
+                    for cc in val_ids
+                ])
+                train_idx = np.array([
+                    cc_to_local_idx[cc]
+                    for cc in inner_train_ids
+                ])
+
+                custom_inner_cv.append(
+                    (train_idx, val_idx)
+                )
+
+            print(
+                f"Inner CV splits successfully loaded "
+                f"({inner_splits} folds)"
+            )
+
+            # Nested Run (Child Run) for this outer fold
+            with mlflow.start_run(run_name=f"Fold_{outer_fold_idx}", nested=True):
+                
+                # =====================================================
+                # GRID SEARCH
+                # =====================================================
+                grid_search = GridSearchCV(
+                    estimator=pipeline,
+                    param_grid=param_grid,
+                    cv=custom_inner_cv,
+                    scoring=gridsearch_metric,
+                    n_jobs=-1,
+                    refit=True,
+                    verbose=1
+                )
+                print(
+                    f"Starting GridSearchCV "
+                    f"(metric='{gridsearch_metric}') ..."
+                )
+                
+                # =====================================================
+                # TRAIN
+                # =====================================================
+
+                grid_search.fit(X_train, y_train, **fit_params)
+
+                # =====================================================
+                # SELECT BEST MODEL
+                # =====================================================
+
+                best_model = grid_search.best_estimator_
+
+                # =====================================================
+                # OUTER TEST PREDICTION
+                # =====================================================
+
+                y_pred = best_model.predict(X_test)
+
+                # =====================================================
+                # METRICS MACRO
+                # =====================================================
+                f1 = f1_score(y_test, y_pred, average="macro")
+                mcc = matthews_corrcoef(y_test, y_pred)
+                accuracy = accuracy_score(y_test, y_pred)
+                
+                # Store global results
+                global_results.append({
+                    "model_name": experiment_name,
+                    "outer_fold": outer_fold_idx,
+                    "f1_macro": f1,
+                    "MCC": mcc,
+                    "accuracy": accuracy,
+                    "best_params": str(
+                        grid_search.best_params_
+                    )
+                })
+                
+                # Store label and prediction (original values)
+                y_test_orig = label_encoder.inverse_transform(y_test)
+                y_pred_orig = label_encoder.inverse_transform(y_pred)
+                all_y_test.extend(y_test_orig)
+                all_y_pred.extend(y_pred_orig)
+
+                # Register metrics per fold in MLFlow
+                mlflow.log_metric("f1_macro", f1)
+                mlflow.log_metric("MCC", mcc)
+                mlflow.log_metric("accuracy", accuracy)
+                mlflow.log_param("best_params", str(grid_search.best_params_))
+
+
+        elapsed_time = time.time() - start_time
+        print("\n" + "-" * 80)
+        print(f"Total time      : {elapsed_time:.2f} seconds")
+        print("-" * 80)
+        mlflow.log_metric("NCV_time",elapsed_time)
+
+        # =========================================================
+        # FORMAT RESULTS
+        # =========================================================
+
+        # Store global results in a dataframe
+        global_results_df = pd.DataFrame(global_results)
+
+        # Create confusion matrix and save as a dataframe
+        class_names = np.unique(all_y_test)
+        cm_df = pd.DataFrame(
+            confusion_matrix(all_y_test, all_y_pred),
+            index = class_names,
+            columns= class_names
+        )
+        cm_df.index.name = "Actual"
+        cm_df.columns.name = "Predicted"
+
+        # Classification report
+        class_report = classification_report(
+            all_y_test,
+            all_y_pred,
+            output_dict=True
+        )
+        # Save as a dataframe
+        class_report_df = (
+            pd.DataFrame(class_report)
+            .transpose()
+            [["precision", "recall", "f1-score"]]
+        )
+        class_report_df = class_report_df.drop(
+            index=["accuracy", "macro avg", "weighted avg"],
+            errors="ignore"
+        )
+        class_report_df["model_name"] = experiment_name
+        class_report_df = class_report_df.reset_index().rename(columns={"index": "class"})
+
+        # =========================================================
+        # SAVE RESULTS
+        # =========================================================
+        
+        # Create output folder for the current nested cv configuration
+        output_custom_dir = os.path.join(
+            output_dir,
+            f"{outer_splits}x{inner_splits}_NCV",
+            f"{experiment_name}"
+        )
+        os.makedirs(output_custom_dir, exist_ok=True)
+
+        print("\nSaving results...")
+        print(f"Output directory: {output_custom_dir}")
+
+        global_results_df.to_csv(
+            os.path.join(output_custom_dir, f"{experiment_name}_global_metrics.csv"),
+            index=False
+        )
+        cm_df.to_csv(
+            os.path.join(output_custom_dir, f"{experiment_name}_confusion_matrix.csv"),
+            index=False
+        )
+        class_report_df.to_csv(
+            os.path.join(output_custom_dir, f"{experiment_name}_class_metrics.csv"),
+            index=False
+        )
+
+        print("=" * 80)
+        
+        # Save Artifacts
+        mlflow.log_artifact(os.path.join(output_custom_dir, f"{experiment_name}_global_metrics.csv"))
+        mlflow.log_artifact(os.path.join(output_custom_dir, f"{experiment_name}_confusion_matrix.csv"))
+        mlflow.log_artifact(os.path.join(output_custom_dir, f"{experiment_name}_class_metrics.csv"))
+
+        # Register mean metrics
+        mlflow.log_metric("mean_f1_macro", global_results_df["f1_macro"].mean())
+        mlflow.log_metric("std_f1_macro", global_results_df["f1_macro"].std())
+
+        mlflow.log_metric("mean_mcc", global_results_df["MCC"].mean())
+        mlflow.log_metric("std_mcc", global_results_df["MCC"].std())
+
+        mlflow.log_metric("mean_accuracy", global_results_df["accuracy"].mean())
+        mlflow.log_metric("std_accuracy", global_results_df["accuracy"].std())
+
+        print("=" * 80)
+        return global_results_df, cm_df, class_report_df
+    
 # ==============================================================================
 # ANALYSIS OF RESULTS
 # ==============================================================================

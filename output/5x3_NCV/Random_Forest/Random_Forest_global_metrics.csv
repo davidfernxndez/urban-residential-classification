@@ -1,0 +1,6 @@
+,model_name,outer_fold,f1_macro,MCC,accuracy,best_params
+0,Random_Forest,0,0.924151380412687,0.9233922229000393,0.9457364341085271,"{'model__criterion': 'gini', 'model__max_depth': None, 'model__max_features': 'sqrt', 'model__min_samples_split': 5, 'model__n_estimators': 100}"
+1,Random_Forest,1,0.9292804611409263,0.9343565937011461,0.9534883720930233,"{'model__criterion': 'gini', 'model__max_depth': 10, 'model__max_features': 0.4, 'model__min_samples_split': 2, 'model__n_estimators': 200}"
+2,Random_Forest,2,0.9113612802292048,0.9335002515633634,0.953125,"{'model__criterion': 'gini', 'model__max_depth': 10, 'model__max_features': 0.4, 'model__min_samples_split': 5, 'model__n_estimators': 100}"
+3,Random_Forest,3,0.9049393875151773,0.9216636944061564,0.9453125,"{'model__criterion': 'entropy', 'model__max_depth': 10, 'model__max_features': 'sqrt', 'model__min_samples_split': 5, 'model__n_estimators': 300}"
+4,Random_Forest,4,0.8763561677105371,0.8882825284158385,0.921875,"{'model__criterion': 'gini', 'model__max_depth': None, 'model__max_features': 0.4, 'model__min_samples_split': 5, 'model__n_estimators': 100}"

@@ -1,0 +1,6 @@
+,model_name,outer_fold,f1_macro,MCC,accuracy,best_params
+0,XGBoost,0,0.9345653896092742,0.9343148131294117,0.9534883720930233,"{'model__colsample_bytree': 0.8, 'model__gamma': 0, 'model__learning_rate': 0.1, 'model__max_depth': 5, 'model__n_estimators': 100, 'model__reg_lambda': 1, 'model__subsample': 1.0}"
+1,XGBoost,1,0.9236034165116793,0.9241655187385045,0.9457364341085271,"{'model__colsample_bytree': 1.0, 'model__gamma': 0.3, 'model__learning_rate': 0.01, 'model__max_depth': 5, 'model__n_estimators': 300, 'model__reg_lambda': 1, 'model__subsample': 1.0}"
+2,XGBoost,2,0.9288459794380419,0.9447167748579895,0.9609375,"{'model__colsample_bytree': 0.8, 'model__gamma': 0, 'model__learning_rate': 0.1, 'model__max_depth': 5, 'model__n_estimators': 300, 'model__reg_lambda': 1, 'model__subsample': 1.0}"
+3,XGBoost,3,0.9048690304683802,0.9324397426004529,0.953125,"{'model__colsample_bytree': 1.0, 'model__gamma': 0.3, 'model__learning_rate': 0.1, 'model__max_depth': 5, 'model__n_estimators': 300, 'model__reg_lambda': 1, 'model__subsample': 0.8}"
+4,XGBoost,4,0.8732731599692605,0.9102138570836988,0.9375,"{'model__colsample_bytree': 0.8, 'model__gamma': 0, 'model__learning_rate': 0.1, 'model__max_depth': 5, 'model__n_estimators': 300, 'model__reg_lambda': 1, 'model__subsample': 1.0}"

@@ -31,3 +31,6 @@ conda-meta/
 # VsCode
 .vscode/
 
+# MLflow
+
+/mlruns/
