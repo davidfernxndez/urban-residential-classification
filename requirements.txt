@@ -20,6 +20,6 @@ mlflow==3.0.0
 matplotlib==3.8.4
 seaborn==0.13.2
 
-# --- Configuración del Proyecto Local ---
-# Instala automáticamente la carpeta src/ y config.py en modo editable
+# --- Local Project Configuration ---
+# Automatically installs the src/ folder in editable mode
 -e .

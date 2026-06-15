@@ -87,7 +87,7 @@ def performance_experiment(
 
     Returns
     -------
-    global_results_df : pandas.DataFrame
+    global_metrics_df : pandas.DataFrame
         DataFrame containing aggregated performance metrics per outer fold,
         including macro F1-score, MCC and accuracy. It also includes best
         hyperparameters for each fold.
@@ -95,7 +95,7 @@ def performance_experiment(
     cm_df : pandas.DataFrame
         DataFrame containing accumulated confusion matrix.
     
-    class_report_df : pandas.DataFrame
+    class_metrics_df : pandas.DataFrame
         DataFrame containing accumulated classification report:
         f1-score, precision and recall values for each class.
     """
@@ -140,8 +140,8 @@ def performance_experiment(
         os.path.join(folds_dir, outer_file_name)
     )
     
-    # List to store global results 
-    global_results = []
+    # List to store global metrics 
+    global_metrics = []
 
     # Lists to store labels and predictions for building
     # accumulated confusion matrix
@@ -353,8 +353,8 @@ def performance_experiment(
         mcc = matthews_corrcoef(y_test, y_pred)
         accuracy = accuracy_score(y_test, y_pred)
         
-        # Store global results
-        global_results.append({
+        # Store global metrics
+        global_metrics.append({
             "model_name": experiment_name,
             "outer_fold": outer_fold_idx,
             "f1_macro": f1,
@@ -379,8 +379,8 @@ def performance_experiment(
     # FORMAT RESULTS
     # =========================================================
 
-    # Store global results in a dataframe
-    global_results_df = pd.DataFrame(global_results)
+    # Store global metrics in a dataframe
+    global_metrics_df = pd.DataFrame(global_metrics)
 
     # Create confusion matrix and save as a dataframe
     class_names = np.unique(all_y_test)
@@ -389,27 +389,25 @@ def performance_experiment(
         index = class_names,
         columns= class_names
     )
-    cm_df.index.name = "Actual"
-    cm_df.columns.name = "Predicted"
 
     # Classification report
-    class_report = classification_report(
+    class_metrics = classification_report(
         all_y_test,
         all_y_pred,
         output_dict=True
     )
     # Save as a dataframe
-    class_report_df = (
-        pd.DataFrame(class_report)
+    class_metrics_df = (
+        pd.DataFrame(class_metrics)
         .transpose()
         [["precision", "recall", "f1-score"]]
     )
-    class_report_df = class_report_df.drop(
+    class_metrics_df = class_metrics_df.drop(
         index=["accuracy", "macro avg", "weighted avg"],
         errors="ignore"
     )
-    class_report_df["model_name"] = experiment_name
-    class_report_df = class_report_df.reset_index().rename(columns={"index": "class"})
+    class_metrics_df["model_name"] = experiment_name
+    class_metrics_df = class_metrics_df.reset_index().rename(columns={"index": "class"})
 
     # =========================================================
     # SAVE RESULTS
@@ -426,20 +424,21 @@ def performance_experiment(
     print("\nSaving results...")
     print(f"Output directory: {output_custom_dir}")
 
-    global_results_df.to_csv(
-        os.path.join(output_custom_dir, f"{experiment_name}_global_metrics.csv")
+    global_metrics_df.to_csv(
+        os.path.join(output_custom_dir, f"{experiment_name}_global_metrics.csv"),
+        index=False
     )
     cm_df.to_csv(
-        os.path.join(output_custom_dir, f"{experiment_name}_confusion_matrix.csv")
+            os.path.join(output_custom_dir, f"{experiment_name}_confusion_matrix.csv")
     )
-    class_report_df.to_csv(
+    class_metrics_df.to_csv(
         os.path.join(output_custom_dir, f"{experiment_name}_class_metrics.csv"),
         index=False
     )
 
     print("=" * 80)
 
-    return global_results_df, cm_df, class_report_df
+    return global_metrics_df, cm_df, class_metrics_df
 
 
 def performance_experiment_mlflow(
@@ -488,7 +487,7 @@ def performance_experiment_mlflow(
 
     Returns
     -------
-    global_results_df : pandas.DataFrame
+    global_metrics_df : pandas.DataFrame
         DataFrame containing aggregated performance metrics per outer fold,
         including macro F1-score, MCC and accuracy. It also includes best
         hyperparameters for each fold.
@@ -496,10 +495,11 @@ def performance_experiment_mlflow(
     cm_df : pandas.DataFrame
         DataFrame containing accumulated confusion matrix.
     
-    class_report_df : pandas.DataFrame
+    class_metrics_df : pandas.DataFrame
         DataFrame containing accumulated classification report:
         f1-score, precision and recall values for each class.
     """
+
     # =========================================================
     # LOAD CONFIGURATION VARIABLES
     # =========================================================
@@ -541,8 +541,8 @@ def performance_experiment_mlflow(
         os.path.join(folds_dir, outer_file_name)
     )
     
-    # List to store global results 
-    global_results = []
+    # List to store global metrics 
+    global_metrics = []
 
     # Lists to store labels and predictions for building
     # accumulated confusion matrix
@@ -769,8 +769,8 @@ def performance_experiment_mlflow(
                 mcc = matthews_corrcoef(y_test, y_pred)
                 accuracy = accuracy_score(y_test, y_pred)
                 
-                # Store global results
-                global_results.append({
+                # Store global metrics
+                global_metrics.append({
                     "model_name": experiment_name,
                     "outer_fold": outer_fold_idx,
                     "f1_macro": f1,
@@ -805,7 +805,7 @@ def performance_experiment_mlflow(
         # =========================================================
 
         # Store global results in a dataframe
-        global_results_df = pd.DataFrame(global_results)
+        global_metrics_df = pd.DataFrame(global_metrics)
 
         # Create confusion matrix and save as a dataframe
         class_names = np.unique(all_y_test)
@@ -814,27 +814,25 @@ def performance_experiment_mlflow(
             index = class_names,
             columns= class_names
         )
-        cm_df.index.name = "Actual"
-        cm_df.columns.name = "Predicted"
 
         # Classification report
-        class_report = classification_report(
+        class_metrics = classification_report(
             all_y_test,
             all_y_pred,
             output_dict=True
         )
         # Save as a dataframe
-        class_report_df = (
-            pd.DataFrame(class_report)
+        class_metrics_df = (
+            pd.DataFrame(class_metrics)
             .transpose()
             [["precision", "recall", "f1-score"]]
         )
-        class_report_df = class_report_df.drop(
+        class_metrics_df = class_metrics_df.drop(
             index=["accuracy", "macro avg", "weighted avg"],
             errors="ignore"
         )
-        class_report_df["model_name"] = experiment_name
-        class_report_df = class_report_df.reset_index().rename(columns={"index": "class"})
+        class_metrics_df["model_name"] = experiment_name
+        class_metrics_df = class_metrics_df.reset_index().rename(columns={"index": "class"})
 
         # =========================================================
         # SAVE RESULTS
@@ -851,15 +849,14 @@ def performance_experiment_mlflow(
         print("\nSaving results...")
         print(f"Output directory: {output_custom_dir}")
 
-        global_results_df.to_csv(
+        global_metrics_df.to_csv(
             os.path.join(output_custom_dir, f"{experiment_name}_global_metrics.csv"),
             index=False
         )
         cm_df.to_csv(
-            os.path.join(output_custom_dir, f"{experiment_name}_confusion_matrix.csv"),
-            index=False
+            os.path.join(output_custom_dir, f"{experiment_name}_confusion_matrix.csv")
         )
-        class_report_df.to_csv(
+        class_metrics_df.to_csv(
             os.path.join(output_custom_dir, f"{experiment_name}_class_metrics.csv"),
             index=False
         )
@@ -872,23 +869,23 @@ def performance_experiment_mlflow(
         mlflow.log_artifact(os.path.join(output_custom_dir, f"{experiment_name}_class_metrics.csv"))
 
         # Register mean metrics
-        mlflow.log_metric("mean_f1_macro", global_results_df["f1_macro"].mean())
-        mlflow.log_metric("std_f1_macro", global_results_df["f1_macro"].std())
+        mlflow.log_metric("mean_f1_macro", global_metrics_df["f1_macro"].mean())
+        mlflow.log_metric("std_f1_macro", global_metrics_df["f1_macro"].std())
 
-        mlflow.log_metric("mean_mcc", global_results_df["MCC"].mean())
-        mlflow.log_metric("std_mcc", global_results_df["MCC"].std())
+        mlflow.log_metric("mean_mcc", global_metrics_df["MCC"].mean())
+        mlflow.log_metric("std_mcc", global_metrics_df["MCC"].std())
 
-        mlflow.log_metric("mean_accuracy", global_results_df["accuracy"].mean())
-        mlflow.log_metric("std_accuracy", global_results_df["accuracy"].std())
+        mlflow.log_metric("mean_accuracy", global_metrics_df["accuracy"].mean())
+        mlflow.log_metric("std_accuracy", global_metrics_df["accuracy"].std())
 
         print("=" * 80)
-        return global_results_df, cm_df, class_report_df
+        return global_metrics_df, cm_df, class_metrics_df
     
 # ==============================================================================
 # ANALYSIS OF RESULTS
 # ==============================================================================
 
-def visualize_model_performance(df, y_lim = [0.8, 1]):
+def analyze_global_performance(df, y_lim = [0.8, 1], metric_gain='f1_macro'):
     """
     Generate performance summaries and visualizations for models evaluated
     using Nested Cross-Validation.
@@ -898,6 +895,7 @@ def visualize_model_performance(df, y_lim = [0.8, 1]):
     - A bar plot showing the average F1-macro and MCC scores for each model.
     - A box plot showing the distribution of F1-macro and MCC scores across
     cross-validation folds for each model.
+    - A heat matp showing  'metric_gain' absolute differences between models.
 
     Parameters
     ----------
@@ -913,6 +911,9 @@ def visualize_model_performance(df, y_lim = [0.8, 1]):
     y_lim : list of float [optional, default=[0.8,1] ] 
         Lower and upper limits of the y-axis for the generated plots.
 
+    metric_gain: str [optional, default=f1_macro]
+        Metric used in absolute differences heat map.
+        
     Returns
     -------
     pandas.DataFrame
@@ -936,26 +937,26 @@ def visualize_model_performance(df, y_lim = [0.8, 1]):
         )
     
     table_df = table_df.reset_index()
-    table_df.columns = ['model_name', 'F1-macro', 'MCC', 'Accuracy']
-    table_df = table_df.sort_values(by="F1-macro")
+    table_df.columns = ['model_name', 'F1-Score macro', 'MCC', 'Accuracy']
+    table_df = table_df.sort_values(by="F1-Score macro")
 
     display(
         table_df.style
         .hide(axis="index")
-        .set_caption("Rendimiento en Nested Cross Validation (Mean ± Standard Deviation)")
+        .set_caption("Rendimiento global de los modelos evaluados (μ±σ)")
         .set_properties(**{
             'text-align': 'center',
             'border': '1px solid black'
         })
     )
-
+    
     # =========================================================
     # FORMAT DATAFRAME TO PLOT RESULTS
     # =========================================================
     df_long = df[['model_name', 'f1_macro', 'MCC']].melt(
         id_vars=['model_name'], var_name='metric', value_name='value'
     )
-    df_long['metric'] = df_long['metric'].replace({'f1_macro': 'F1-macro', 'MCC': 'MCC'})
+    df_long['metric'] = df_long['metric'].replace({'f1_macro': 'F1-Score macro', 'MCC': 'MCC'})
     
     # Display in ascending order according to mean F1-macro
     order = table_df['model_name'].tolist()
@@ -970,12 +971,12 @@ def visualize_model_performance(df, y_lim = [0.8, 1]):
         hue='metric', 
         data=df_long,
         order = order,
-        palette="muted",
+        palette="Accent",
         errorbar=None,
         edgecolor="black",
         linewidth = 1.2   
     )
-    plt.title('Rendimiento promedio de los modelos\nen Nested Cross Validation', fontsize=14, weight='bold', color='black')
+    plt.title('Rendimiento medio en Nested Cross Validation', fontsize=14, weight='bold', color='black')
     plt.ylabel('Score', fontsize=12, labelpad=10, color='black')
     plt.xlabel('Modelo', fontsize=12, labelpad=10, color='black')
     plt.ylim(y_lim[0], y_lim[1])
@@ -985,7 +986,7 @@ def visualize_model_performance(df, y_lim = [0.8, 1]):
     # Plot legend in the bottom
     sns.move_legend(
         ax_1, "upper center",         
-        bbox_to_anchor=(0.5, -0.25), 
+        bbox_to_anchor=(0.5, -0.15), 
         ncol=2,                     
         frameon=True, 
         title="Métrica"
@@ -1007,11 +1008,11 @@ def visualize_model_performance(df, y_lim = [0.8, 1]):
         hue='metric', 
         data=df_long,
         order = order,
-        palette="muted",
+        palette="Accent",
         linewidth = 1.2   
     )
 
-    plt.title('Distribución del rendimiento de los modelos\nen Nested Cross Validation', fontsize=14, pad=15, weight='bold')
+    plt.title('Distribución del rendimiento en Nested Cross Validation', fontsize=14, pad=15, weight='bold')
     plt.ylabel('Score', fontsize=12, labelpad=10, color='black')
     plt.xlabel('Modelo', fontsize=12, labelpad=10, color='black')
     plt.ylim(y_lim[0], y_lim[1])
@@ -1021,7 +1022,7 @@ def visualize_model_performance(df, y_lim = [0.8, 1]):
     # Plot legend in the bottom
     sns.move_legend(
         ax_2, "upper center",         
-        bbox_to_anchor=(0.5, -0.25), 
+        bbox_to_anchor=(0.5, -0.15), 
         ncol=2,                     
         frameon=True, 
         title="Métrica"
@@ -1033,6 +1034,67 @@ def visualize_model_performance(df, y_lim = [0.8, 1]):
     plt.tight_layout()
     plt.show() 
     
+
+    # =========================================================
+    # ABSOLUTE DIFFERENCES HEAT MAP
+    # =========================================================
+    gain_df = df.groupby('model_name')[metric_gain].agg(['mean']).sort_values(by="mean")
+    
+    # Calculate absolute differences between models
+    mean_values = gain_df["mean"].values
+    dif_matrix = np.abs(mean_values [:, None] - mean_values)*100
+    df_dif = pd.DataFrame(dif_matrix, index=gain_df.index, columns=gain_df.index)
+
+    # Select low triangle of the matrix
+    mask = np.triu(np.ones_like(dif_matrix, dtype=bool))
+    df_dif_split = df_dif.iloc[1:, :-1]
+    mask_split = mask[1:, :-1]
+
+    plt.figure(figsize=(8, 6)) 
+    ax_3 = sns.heatmap(
+        df_dif_split,
+        mask=mask_split,
+        annot=True,  
+        fmt=".2f",  
+        cmap="RdYlGn",  
+        vmin=0,
+        center=0,
+        cbar_kws={"label": "Diferencia absoluta (%)"},
+        linewidths=1,
+    )
+
+    # Set titles
+    ax_3.set_title(
+        "Diferencias absolutas de F1-Score Macro medio",
+        fontsize=14,
+        fontweight="bold",
+        pad=25
+    )
+    ax_3.text(
+        0.5, 1.02, 
+        r"$\left( \text{Modelo A} - \text{Modelo B} \right) \times 100$",
+        fontsize=11,
+        fontweight="normal",
+        color="dimgray",      
+        style="italic",       
+        ha="center",          
+        va="bottom",          
+        transform=ax_3.transAxes   
+    )
+    ax_3.set_xlabel("Modelo B")
+    ax_3.set_ylabel("Modelo A")
+    
+    # Tick styling
+    ax_3.set_xticklabels(ax_3.get_xticklabels(), rotation=45, ha='right', fontsize=11)
+    ax_3.set_yticklabels(ax_3.get_yticklabels(), rotation=0)
+
+    # Remove spines for cleaner look
+    for spine in ax_3.spines.values():
+        spine.set_visible(False)
+
+    plt.tight_layout()
+    plt.show()
+
     return table_df
 
 
@@ -1060,8 +1122,10 @@ def plot_confusion_matrix(cm_df, label_map, model_name):
     -------
     None
     """
+
     # Rename label index with mapping dictionary
-    cm_df = cm_df.rename(index=label_map, columns=label_map)
+    cm_df.index = cm_df.index.astype(int).map(label_map)
+    cm_df.columns = cm_df.columns.astype(int).map(label_map)
 
     # Normalize confusion matrix
     cm_norm = cm_df.div(cm_df.sum(axis=1), axis=0) * 100
@@ -1086,10 +1150,20 @@ def plot_confusion_matrix(cm_df, label_map, model_name):
     )
 
     ax.set_title(
-        f"Matriz de confusión normalizada\nModelo: {model_name}",
+        "Matriz de confusión out-of-fold normalizada",
+        fontsize=12,
+        fontweight="bold",
+        pad=25 
+    )
+    ax.text(
+        0.5, 1.02, 
+        f"{model_name.replace('_',' ')}",
         fontsize=14,
         fontweight="bold",
-        pad=14
+        color="dimgray",  
+        ha="center",      
+        va="bottom",      
+        transform=ax.transAxes  
     )
 
     ax.set_xlabel("Predicted Class", fontsize=12, labelpad=10)
@@ -1107,7 +1181,7 @@ def plot_confusion_matrix(cm_df, label_map, model_name):
     plt.show()
 
 
-def compare_class_report(df, model_A, model_B, label_map, y_lim=[0.5, 1]):
+def compare_class_metrics(df, model_A, model_B, label_map, y_lim=[0.5, 1]):
     """
     Compare the class-wise performance of two models:
     - model_A represents a transparent (interpretable) model
@@ -1115,7 +1189,7 @@ def compare_class_report(df, model_A, model_B, label_map, y_lim=[0.5, 1]):
 
     This function generates two visual analyses:
     1. A grouped bar plot showing the F1-score per class for two models.
-    2. A heatmap showing the performance gain (Model B - Model A) in precision
+    2. A heatmap showing the relative difference (Model B - Model A) in precision
        and recall for each class.
 
     Parameters
@@ -1145,6 +1219,7 @@ def compare_class_report(df, model_A, model_B, label_map, y_lim=[0.5, 1]):
     -------
     None
     """
+
     # Work with a copy dataframe
     class_report_df = df.copy()
     # Format model names to replace '_' by ' '
@@ -1164,11 +1239,11 @@ def compare_class_report(df, model_A, model_B, label_map, y_lim=[0.5, 1]):
         y='f1-score', 
         hue='model_name', 
         data=class_report_df,
-        palette="muted",
+        palette="pastel",
         edgecolor="black",
         linewidth = 1.2   
     )
-    plt.title('F1-Score por grado de cerramiento y modelo', fontsize=14, weight='bold', color='black')
+    plt.title('Comparativa de F1-Score por clase', fontsize=14, weight='bold', color='black')
     plt.ylabel('F1-Score', fontsize=12, labelpad=10, color='black')
     plt.xlabel('Grado de cerramiento', fontsize=12, labelpad=10, color='black')
     plt.ylim(y_lim[0], y_lim[1])
@@ -1178,7 +1253,7 @@ def compare_class_report(df, model_A, model_B, label_map, y_lim=[0.5, 1]):
     # Plot legend in the bottom
     sns.move_legend(
         ax_1, "upper center",         
-        bbox_to_anchor=(0.5, -0.25), 
+        bbox_to_anchor=(0.5, -0.15), 
         ncol=2,                     
         frameon=True, 
         title="Modelo"
@@ -1192,7 +1267,7 @@ def compare_class_report(df, model_A, model_B, label_map, y_lim=[0.5, 1]):
 
 
     # ---------------------------------------------------------
-    # PRECISION AND RECALL GAIN
+    # PRECISION AND RECALL RELATIVE DIFFERENCE
     # ---------------------------------------------------------
     df_pivot = class_report_df.pivot_table(
         index='class',
@@ -1201,8 +1276,8 @@ def compare_class_report(df, model_A, model_B, label_map, y_lim=[0.5, 1]):
     )
 
     # Calculate the gain of model B with respect to model A
-    gain_precision = df_pivot['precision'][model_B] - df_pivot['precision'][model_A]
-    gain_recall = df_pivot['recall'][model_B] - df_pivot['recall'][model_A]
+    gain_precision = ( (df_pivot['precision'][model_B] - df_pivot['precision'][model_A])/df_pivot['precision'][model_A] ) * 100
+    gain_recall = ( (df_pivot['recall'][model_B] - df_pivot['recall'][model_A])/df_pivot['recall'][model_A] ) * 100
 
     # Store results in dataframe to plot in heatmap
     df_gain = pd.DataFrame({
@@ -1219,25 +1294,31 @@ def compare_class_report(df, model_A, model_B, label_map, y_lim=[0.5, 1]):
         df_gain,
         annot=True,
         fmt=".3f",
+        vmin=0,
+        vmax=100,
         cmap="coolwarm",
         center=0,
         linewidths=0.8,
         linecolor="white",
+        cbar_kws={"label": "Diferencia relativa (%)"},
         annot_kws={"size": 12, "weight": "bold"}
     )
 
+    # Title and subtitle
     plt.title(
-        f"Ganancia del modelo caja negra ({model_B}) respecto\nal modelo transparente ({model_A})",
-        fontsize=14,
-        weight='bold',
-        pad=12
+        f"Diferencia relativa de {model_B} (caja negra)\n respecto a {model_A} (transparente)",
+        fontsize=13,
+        fontweight="bold",
+        pad=10
     )
     plt.xlabel("Métrica", fontsize=12, labelpad=10)
     plt.ylabel("Grado de cerramiento", fontsize=12, labelpad=10)
     ax.set_xticklabels(ax.get_xticklabels(), fontsize=11)
     ax.set_yticklabels(ax.get_yticklabels(), fontsize=11, rotation=0)
+
     for spine in ax.spines.values():
         spine.set_visible(False)
+
     plt.tight_layout()
     plt.show()
 

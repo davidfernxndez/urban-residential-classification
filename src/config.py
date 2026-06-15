@@ -14,7 +14,6 @@ class Config:
     DATA_RAW_DIR: Path = DATA_DIR / "raw"
     DATA_PROCESSED_DIR: Path = DATA_DIR / "processed"
     DATA_FOLDS_DIR: Path = DATA_DIR / "folds"
- 
     DATASET_PATH = DATA_PROCESSED_DIR / "model_data.csv"
     
     # Output folder
