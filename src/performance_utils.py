@@ -82,8 +82,8 @@ def performance_experiment(
         Metric to optimize in the search of hyperparameters
     
     use_balanced_weights: bool [optional, default="false]
-            Indicates if balanced sample weights are computed from the training
-            data of each fold.
+        Indicates if balanced sample weights are computed from the training
+        data of each fold.
 
     Returns
     -------
@@ -129,7 +129,7 @@ def performance_experiment(
     # =========================================================
 
     # Encode the K classes to the range of values ​​[0,..,K-1] so that
-    #  models like XGBoost can function correctly
+    #  models like XGBoost can work correctly
     label_encoder = LabelEncoder()
     dataset_df[target_variable] = label_encoder.fit_transform(dataset_df[target_variable])
 
@@ -236,7 +236,8 @@ def performance_experiment(
                 class_weight="balanced",
                 y=y_train
             )
-            fit_params["model__sample_weight"] = sample_weights
+            estimator_name = pipeline.steps[-1][0]
+            fit_params[f"{estimator_name}__sample_weight"] = sample_weights
             print("Using balanced sample weights")
 
         # =====================================================
@@ -530,7 +531,7 @@ def performance_experiment_mlflow(
     # =========================================================
 
     # Encode the K classes to the range of values ​​[0,..,K-1] so that
-    #  models like XGBoost can function correctly
+    #  models like XGBoost can work correctly
     label_encoder = LabelEncoder()
     dataset_df[target_variable] = label_encoder.fit_transform(dataset_df[target_variable])
 
@@ -649,7 +650,8 @@ def performance_experiment_mlflow(
                     class_weight="balanced",
                     y=y_train
                 )
-                fit_params["model__sample_weight"] = sample_weights
+                estimator_name = pipeline.steps[-1][0]
+                fit_params[f"{estimator_name}__sample_weight"] = sample_weights
                 print("Using balanced sample weights")
 
             # =====================================================
@@ -880,7 +882,8 @@ def performance_experiment_mlflow(
 
         print("=" * 80)
         return global_metrics_df, cm_df, class_metrics_df
-    
+
+
 # ==============================================================================
 # ANALYSIS OF RESULTS
 # ==============================================================================
