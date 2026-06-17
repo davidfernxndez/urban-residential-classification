@@ -237,7 +237,7 @@ def train_final_model(config, model, param_grid, model_name, gridsearch_metric="
     artifacts_to_save = {
         "model": final_model,          
         "label_encoder": label_encoder, 
-        "experiment_name": model_name
+        "name": model_name
     }
     pkl_path = os.path.join(output_custom_dir, f"{model_name}_model.pkl")
     joblib.dump(artifacts_to_save, pkl_path)

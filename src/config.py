@@ -36,7 +36,7 @@ class Config:
     # NESTED CROSS-VALIDATION
     ##########################
     OUTER_SPLITS: int = 5
-    INNER_SPLITS: int = 3
+    INNER_SPLITS: int = 5
     OUTER_FOLD_FILENAME : str = "outer_folds.csv"
     INNER_FOLD_PREFIX: str = "inner_fold_"
 
