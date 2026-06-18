@@ -1,11 +1,10 @@
 import os
-import warnings
-import random
 import numpy as np
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 import matplotlib as mpl
+from dtreeviz import model
 import joblib
 
 # ==============================================================================
@@ -22,14 +21,16 @@ def load_lr_coefs(config, model_path):
     Parameters
     ----------
     config : object
-        Configuration object containing:
+        Configuration object containing project parameters. Must include:
         - DATASET_PATH : Path to input dataset CSV file
         - ID_VARIABLE : Unique identifier column name 
         - TARGET_VARIABLE : Target variable column name
         - TARGET_LABEL_MAP: dictionary mapping encoded labels to names
 
     model_path : str
-        Path to the serialized model artifact (joblib .pkl file).
+        Path to the serialized model artifact (joblib .pkl file). This file 
+        is expected to contain a dictionary with the trained "model", the 
+        "label_encoder", and the model "name".
 
     Returns
     -------
@@ -381,3 +382,343 @@ def plot_lr_class_coefs(LR_coef_df, class_label):
     ax.spines["right"].set_visible(False)
     plt.tight_layout()
     plt.show()
+
+
+# ==============================================================================
+# DECISION TREE
+# ==============================================================================
+
+def plot_tree_feature_importance(config, model_path):
+    """
+    Plot a horizontal bar chart of decision tree feature importance.
+
+    Parameters
+    ----------
+    config : object
+        Configuration object containing project parameters. Must include:
+        - DATASET_PATH : Path to input dataset CSV file
+        - ID_VARIABLE : Unique identifier column name 
+        - TARGET_VARIABLE : Target variable column name
+
+    model_path : str
+        Path to the serialized model artifact (joblib .pkl file). This file 
+        is expected to contain a dictionary with the trained "model", the 
+        "label_encoder", and the model "name".
+    Returns
+    -------
+    None
+        Displays a matplotlib figure.
+
+    """
+    # =========================================================
+    # LOAD CONFIGURATION VARIABLES
+    # =========================================================
+
+    # Dataset path
+    dataset_path = config.DATASET_PATH
+
+    # Identifier and target variables
+    id_variable = config.ID_VARIABLE
+    target_variable = config.TARGET_VARIABLE
+
+    # =========================================================
+    # LOAD MODEL FROM PKL FILE
+    # =========================================================
+
+    DT_artifacts = joblib.load(model_path)
+
+    DT_model = DT_artifacts["model"]
+    DT_name = DT_artifacts["name"]
+    print(f"{DT_name} model successfully loaded from pkl file.")
+
+
+    # =========================================================
+    # FEATURE IMPORTANCE BAR PLOT
+    # =========================================================
+
+    # Extract feature importance from Decision Tree model
+    feature_importance = DT_model.feature_importances_
+    
+    # Extract feature names from dataset
+    data_df = pd.read_csv(dataset_path)
+    feature_names = data_df.drop(
+        columns=[id_variable, target_variable]
+        ).columns
+    
+    # Sort variables by feature importance value
+    sort_index = np.argsort(feature_importance)[::-1]
+
+    # Horizontal bar plot
+    plt.figure(figsize=(14, 7))
+    sns.barplot(
+        x=feature_importance[sort_index], 
+        y=feature_names[sort_index], 
+        palette="Blues_r",  
+        edgecolor='black'
+    )
+
+    # Title and labels
+    plt.title('Ranking de Importancia de variables en Arbol de Decisión', fontsize=14, pad=15)
+    plt.xlabel('Feature Importance (normalized)', fontsize=12)
+    plt.ylabel('Variables Predictoras', fontsize=12)
+
+    # Grid
+    plt.grid(axis='x', linestyle='--', alpha=0.7)
+
+    # Text with variables information
+    leyenda_texto = (
+        "BLOQUES SEMÁNTICOS\n\n"
+        "Aspectos estructurales:\n"
+        " • CSS: Calles sin salida\n"
+        " • CFS: Calle en fondo de saco\n"
+        " • CPE: Calle Peatonal\n"
+        " • LIN: Comercio Interno\n"
+        " • LEX: Comercio Externo\n\n"
+        "Distancia:\n"
+        " • DIS_1: Urbanización aislada\n"
+        " • DIS_2: Urbanización separada\n"
+        " • DIS_3: Urbanización integrada\n\n"
+        "Tipo de cerramiento:\n"
+        " • VER: Verjas       • MUR: Muros\n"
+        " • CAD: Cadenas      • BOL: Bolardos\n"
+        " • ARB: Arbustos     • CPP: C. prop. privada\n\n"
+        "Puntos de acceso:\n"
+        " • PVI: Entrada por vivienda\n"
+        " • PBL: Entrada por bloque\n"
+        " • COM: Entrada común\n"
+        " • COMS: Varias entradas comunes\n\n"
+        "Uso de la Vía pública:\n"
+        " • PPU: Dominio/uso público\n"
+        " • PRE: Dominio/uso privado restringido.\n"
+        " • PPR: Dominio/uso privado\n\n"
+        "Seguridad y Vigilancia:\n"
+        " • GSE: Guardia       • CSE: Cámaras\n"
+        " • BSE: Barrera       • ASE: Alarma"
+    )
+    plt.text(
+        x=1.1, y=0.5, 
+        s=leyenda_texto, 
+        transform=plt.gca().transAxes, 
+        fontsize=9.5, 
+        verticalalignment='center', 
+        fontfamily='monospace', 
+        bbox=dict(
+            boxstyle='round,pad=1', 
+            facecolor='#f9f9f9', 
+            edgecolor='#cccccc', 
+            alpha=1.0
+        )
+    )
+
+
+    plt.subplots_adjust(left=0.15, right=0.55, top=0.90, bottom=0.10)
+    plt.show()
+
+
+def get_visual_decision_tree(config, model_path):
+    """
+    Generate and save a visual representation of a decision tree using dtreeviz.
+
+    This function requires the external 'graphviz' executable to be installed 
+    on your system and added to the system's PATH environment variable. 
+    Without it, the underlying 'dtreeviz' library will fail to render the 
+    tree structure and throw an executable missing error.
+
+    Parameters
+    ----------
+    config : object
+        Configuration object containing project parameters. Must include:
+        - DATASET_PATH : str or Path
+            Path to the input dataset CSV file.
+        - ID_VARIABLE : str
+            Column name of the unique identifier.
+        - TARGET_VARIABLE : str
+            Column name of the target variable.
+        - TARGET_LABEL_MAP : dict
+            Dictionary mapping original encoded labels to their readable names.
+        - IMAGES_DIR : str or Path
+            Directory path where the output SVG visualization will be saved.
+
+    model_path : str
+        Path to the serialized model artifact (joblib .pkl file). This file 
+        is expected to contain a dictionary with the trained "model", the 
+        "label_encoder", and the model "name".
+
+    Returns
+    -------
+    viz_tree_view : dtreeviz.utils.DTreeVizRender
+        The dtreeviz visualization object containing the rendered tree, 
+        suitable for direct display in Jupyter Notebooks.
+    """
+    # =========================================================
+    # LOAD CONFIGURATION VARIABLES
+    # =========================================================
+
+    # Dataset path
+    dataset_path = config.DATASET_PATH
+
+    # Identifier and target variables
+    id_variable = config.ID_VARIABLE
+    target_variable = config.TARGET_VARIABLE
+
+    # Mapping from encoded labels to readable names
+    target_label_map = config.TARGET_LABEL_MAP
+
+    # =========================================================
+    # LOAD MODEL FROM PKL FILE
+    # =========================================================
+    DT_artifacts = joblib.load(model_path)
+
+    DT_model = DT_artifacts["model"]
+    DT_encoder = DT_artifacts["label_encoder"]
+    DT_name = DT_artifacts["name"]
+
+    print(f"{DT_name} model successfully loaded from pkl file.")
+
+    # =========================================================
+    # PREPARE FEATURE AND TARGET VARIABLES FOR DTREEVIZ
+    # =========================================================
+
+    # Get features and target from dataset
+    data_df = pd.read_csv(dataset_path)
+    X = data_df.drop(
+        columns=[id_variable, target_variable]
+    ).copy()
+    y = data_df[target_variable].copy()
+
+    # Encode target variable to [0,..,K-1] range because the
+    # tree was trained with this codification
+    y_encoded = DT_encoder.transform(y)
+
+    # Store as int array for dtreeviz internal data types
+    y_encoded = np.array(y_encoded, dtype=int)
+    
+    # Econde target label map in [0,...,K-1] range
+    class_names = {
+        k - 1: v
+        for k, v in target_label_map.items()
+    }
+
+    # Get dtreeviz model
+    viz_tree = model(
+        DT_model,
+        X_train=X,
+        y_train=y_encoded,
+        feature_names=X.columns,
+        target_name="Grado de cerramiento",
+        class_names=class_names
+    )
+
+    # Store dtreeviz model visualization
+    viz_tree_view = viz_tree.view(
+        title="Estructura del árbol de decisión",
+        title_fontsize=18,
+    )
+
+    # Save visualization as svg file
+    viz_tree_filename = os.path.join(config.IMAGES_DIR, "viz_tree.svg")
+    viz_tree_view.save(viz_tree_filename)
+
+    print(f"Decision Tree structure image saved in {viz_tree_filename}")
+
+    return viz_tree
+
+
+def get_leaf_classes_distribution(config, model_path):
+    """
+    TO DO
+
+    Parameters
+    ----------
+    config : object
+        Configuration object containing project parameters. Must include:
+        - DATASET_PATH : str or Path
+            Path to the input dataset CSV file.
+        - ID_VARIABLE : str
+            Column name of the unique identifier.
+        - TARGET_VARIABLE : str
+            Column name of the target variable.
+        - TARGET_LABEL_MAP : dict
+            Dictionary mapping original encoded labels to their readable names.
+        - IMAGES_DIR : str or Path
+            Directory path where the output SVG visualization will be saved.
+
+    model_path : str
+        Path to the serialized model artifact (joblib .pkl file). This file 
+        is expected to contain a dictionary with the trained "model", the 
+        "label_encoder", and the model "name".
+
+    Returns
+    -------
+
+    """    
+    # =========================================================
+    # LOAD CONFIGURATION VARIABLES
+    # =========================================================
+    # Mapping from encoded labels to readable names
+    
+    target_label_map = config.TARGET_LABEL_MAP
+    # Econde target label map in [0,...,K-1] range
+    class_names = {
+        k - 1: v
+        for k, v in target_label_map.items()
+    }
+    # =========================================================
+    # LOAD MODEL FROM PKL FILE
+    # =========================================================
+    DT_artifacts = joblib.load(model_path)
+
+    DT_model = DT_artifacts["model"]
+    DT_encoder = DT_artifacts["label_encoder"]
+    DT_name = DT_artifacts["name"]
+
+    print(f"{DT_name} model successfully loaded from pkl file.")
+
+    # Get tree structure and classes
+    tree = DT_model.tree_
+    classes = DT_model.classes_
+
+    # Identify leaf nodes
+    is_leaf = (tree.children_left == -1) & (tree.children_right == -1)
+    leaf_nodes = np.where(is_leaf)[0]
+
+    # List to store leaf data distributions
+    leaf_data = []
+
+    for node_id in leaf_nodes:
+        # Get number of samples for each class in the leaf
+        count_classes = tree.value[node_id][0]
+        total_samples = tree.n_node_samples[node_id]
+        sum_values_per_leaf = np.sum(count_classes)
+
+        # Calcualte percentage
+        if total_samples > 0:
+            percentage = (count_classes / sum_values_per_leaf) * 100
+        else:
+            percentage = np.zeros_like(count_classes)
+            
+        # Select dominant class of the leaf
+        dom_class_index = np.argmax(count_classes)
+        dom_class = classes[dom_class_index]
+        dom_class_name = class_names.get(dom_class)
+
+        # Create dictionary for current row
+        fila = {
+            'Leaf_ID': node_id,
+            'Total_Muestras': total_samples
+        }
+        
+        # Add samples percentage of each class
+        for i, value in enumerate(classes):
+            name = class_names.get(value)
+            fila[f'Pct_{name}'] = round(percentage[i], 2)
+            
+        # Añadir la columna de la clase dominante
+        fila['Clase_Dominante'] = dom_class_name
+        
+        leaf_data.append(fila)
+
+        # 4. Crear el DataFrame final
+        leaf_df = pd.DataFrame(leaf_data)
+
+    return leaf_df

@@ -18,7 +18,10 @@ class Config:
     
     # Output folder
     OUTPUT_DIR: Path = ROOT_DIR /"output"
-      
+    
+    # Images folder
+    IMAGES_DIR: Path = ROOT_DIR/"images"
+
     ######################
     # DATASET INFORMATION
     ######################

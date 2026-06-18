@@ -36,7 +36,7 @@ def train_final_model(config, model, param_grid, model_name, gridsearch_metric="
     Parameters
     ----------
     config : object
-        Configuration object containing:
+        Configuration object containing project parameters. Must include:
         - DATASET_PATH : Path to input dataset CSV file
         - DATA_FOLDS_DIR : Directory containing precomputed fold CSV files
         - OUTPUT_DIR : Directory where results will be saved

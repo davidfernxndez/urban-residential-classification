@@ -35,7 +35,7 @@ def generate_folds(config):
     Parameters
     ----------
     config : object
-        Configuration object containing:
+        Configuration object containing project parameters. Must include:
         - DATASET_PATH : Path to input dataset CSV file
         - DATA_FOLDS_DIR : Directory containing precomputed fold CSV files
         - OUTER_SPLITS : Number of outer CV folds
@@ -225,7 +225,7 @@ def validate_folds(
     Parameters
     ----------
     config : object
-        Configuration object containing:
+        Configuration object containing project parameters. Must include:
         - DATASET_PATH : Path to input dataset CSV file
         - DATA_FOLDS_DIR : Directory containing precomputed fold CSV files
         - ID_VARIABLE : Unique identifier column name  

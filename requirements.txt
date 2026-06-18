@@ -19,6 +19,7 @@ mlflow==3.0.0
 # --- Visualization ---
 matplotlib==3.8.4
 seaborn==0.13.2
+dtreeviz==2.3.2
 
 # --- Local Project Configuration ---
 # Automatically installs the src/ folder in editable mode
