@@ -20,7 +20,7 @@ from sklearn.utils.class_weight import compute_sample_weight
 # TRAIN PRODUCTION MODEL ON ALL AVAILABLE DATA
 # ==============================================================================
 
-def train_final_model(config, model, param_grid, model_name, gridsearch_metric="f1_macro", use_balanced_weights=False):
+def train_final_model(config, model, param_grid, model_name, gridsearch_metric="f1_macro"):
     """    
     Train a final production-ready machine learning model using
     predefined cross-validation folds and hyperparameter optimization.
@@ -57,10 +57,6 @@ def train_final_model(config, model, param_grid, model_name, gridsearch_metric="
     gridsearch_metric: str [optional, default="f1_macro"]
         Metric to optimize in the search of hyperparameters
     
-    use_balanced_weights: bool [optional, default="false]
-        Indicates if balanced sample weights are computed from the training
-        data of each fold.
-
     Returns
     -------
     final_model : sklearn estimator
@@ -176,20 +172,6 @@ def train_final_model(config, model, param_grid, model_name, gridsearch_metric="
     
     # Remove ID column from training features
     X = X.drop(columns=[id_variable])
-
-    # =====================================================
-    # CLASS WEIGHTS
-    # =====================================================
-    # Used for algorithms that dont't support class_weight
-    # internal parameter
-    fit_params = {}        
-    if use_balanced_weights:
-        sample_weights = compute_sample_weight(
-            class_weight="balanced",
-            y=y
-        )
-        fit_params["sample_weight"] = sample_weights
-        print("Using balanced sample weights")
     
     start_time = time.time()
     # =========================================================
@@ -208,7 +190,7 @@ def train_final_model(config, model, param_grid, model_name, gridsearch_metric="
     # =========================================================
     # TRAIN GRID SEARCH
     # =========================================================
-    grid_search.fit(X, y, **fit_params)
+    grid_search.fit(X, y)
 
     elapsed_time = time.time() - start_time
     print("\n" + "-" * 80)

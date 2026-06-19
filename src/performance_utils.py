@@ -7,6 +7,7 @@ provides functions for aggregating, analyzing, and visualizing
 performance metrics, enabling a comprehensive comparison of model
 results.
 """
+
 # ==============================================================================
 # IMPORTS
 # ==============================================================================
@@ -22,7 +23,6 @@ import mlflow
 
 from sklearn.model_selection import GridSearchCV
 from sklearn.preprocessing import LabelEncoder
-from sklearn.utils.class_weight import compute_sample_weight
 from sklearn.metrics import (
     accuracy_score,
     f1_score,
@@ -42,8 +42,7 @@ def performance_experiment(
         pipeline,
         param_grid,
         experiment_name,
-        gridsearch_metric = "f1_macro",
-        use_balanced_weights=False
+        gridsearch_metric = "f1_macro"
     ):
     """    
     This function performs model evaluation using Nested Cross Validation:
@@ -81,10 +80,6 @@ def performance_experiment(
     gridsearch_metric: str [optional, default="f1_macro"]
         Metric to optimize in the search of hyperparameters
     
-    use_balanced_weights: bool [optional, default="false]
-        Indicates if balanced sample weights are computed from the training
-        data of each fold.
-
     Returns
     -------
     global_metrics_df : pandas.DataFrame
@@ -226,21 +221,6 @@ def performance_experiment(
         )
         
         # =====================================================
-        # CLASS WEIGHTS
-        # =====================================================
-        # Used for algorithms that dont`t support class_weight
-        # internal parameter`
-        fit_params = {}        
-        if use_balanced_weights:
-            sample_weights = compute_sample_weight(
-                class_weight="balanced",
-                y=y_train
-            )
-            estimator_name = pipeline.steps[-1][0]
-            fit_params[f"{estimator_name}__sample_weight"] = sample_weights
-            print("Using balanced sample weights")
-
-        # =====================================================
         # LOAD INNER FOLDS
         # =====================================================
         inner_folds_df = pd.read_csv(
@@ -333,7 +313,7 @@ def performance_experiment(
         # TRAIN
         # =====================================================
 
-        grid_search.fit(X_train, y_train, **fit_params)
+        grid_search.fit(X_train, y_train)
 
         # =====================================================
         # SELECT BEST MODEL
@@ -447,8 +427,7 @@ def performance_experiment_mlflow(
         pipeline,
         param_grid,
         experiment_name,
-        gridsearch_metric = "f1_macro",
-        use_balanced_weights=False
+        gridsearch_metric = "f1_macro"
     ):
     """    
     This function performs the same experiment as the performance_experiment() function
@@ -482,10 +461,6 @@ def performance_experiment_mlflow(
     gridsearch_metric: str [optional, default="f1_macro"]
         Metric to optimize in the search of hyperparameters
     
-    use_balanced_weights: bool [optional, default="false]
-            Indicates if balanced sample weights are computed from the training
-            data of each fold.
-
     Returns
     -------
     global_metrics_df : pandas.DataFrame
@@ -640,21 +615,6 @@ def performance_experiment_mlflow(
             )
             
             # =====================================================
-            # CLASS WEIGHTS
-            # =====================================================
-            # Used for algorithms that dont`t support class_weight
-            # internal parameter`
-            fit_params = {}        
-            if use_balanced_weights:
-                sample_weights = compute_sample_weight(
-                    class_weight="balanced",
-                    y=y_train
-                )
-                estimator_name = pipeline.steps[-1][0]
-                fit_params[f"{estimator_name}__sample_weight"] = sample_weights
-                print("Using balanced sample weights")
-
-            # =====================================================
             # LOAD INNER FOLDS
             # =====================================================
             inner_folds_df = pd.read_csv(
@@ -750,7 +710,7 @@ def performance_experiment_mlflow(
                 # TRAIN
                 # =====================================================
 
-                grid_search.fit(X_train, y_train, **fit_params)
+                grid_search.fit(X_train, y_train)
 
                 # =====================================================
                 # SELECT BEST MODEL
@@ -967,40 +927,101 @@ def analyze_global_performance(df, y_lim = [0.8, 1], metric_gain='f1_macro'):
     # ---------------------------------------------------------
     # BAR PLOT
     # ---------------------------------------------------------
-    plt.figure(figsize=(9, 6)) 
-    ax_1 = sns.barplot(
-        x='model_name', 
-        y='value', 
-        hue='metric', 
+
+    fig, axes = plt.subplots(
+        2, 1,                 
+        figsize=(10, 12),
+        sharex=True           
+    )
+    fig.suptitle(
+        'Rendimiento medio en Nested Cross-Validation',
+        fontsize=16,
+        weight='bold'
+    )
+    # Bar plot with full y-axis scale
+    ax1 = sns.barplot(
+        x='model_name',
+        y='value',
+        hue='metric',
         data=df_long,
-        order = order,
+        order=order,
         palette="Accent",
         errorbar=None,
         edgecolor="black",
-        linewidth = 1.2   
+        linewidth=1.2,
+        ax=axes[0]
     )
-    plt.title('Rendimiento medio en Nested Cross Validation', fontsize=14, weight='bold', color='black')
-    plt.ylabel('Score', fontsize=12, labelpad=10, color='black')
-    plt.xlabel('Modelo', fontsize=12, labelpad=10, color='black')
-    plt.ylim(y_lim[0], y_lim[1])
-    ax_1.grid(axis='y', linestyle='--', alpha=0.6, linewidth=0.8)
-    ax_1.set_yticks(np.arange(y_lim[0], y_lim[1] + 0.01, 0.02))
 
-    # Plot legend in the bottom
-    sns.move_legend(
-        ax_1, "upper center",         
-        bbox_to_anchor=(0.5, -0.15), 
-        ncol=2,                     
-        frameon=True, 
+    axes[0].set_title(
+        'Vista a escala completa',
+        fontsize=13,
+        color='dimgray',
+        weight='bold'
+    )
+
+    axes[0].set_ylabel('Score (0-1)', fontsize=12)
+    axes[0].set_xlabel('')
+
+    axes[0].set_ylim(0, 1)
+    axes[0].grid(axis='y', linestyle='--', alpha=0.6, linewidth=0.8)
+    axes[0].set_yticks(np.arange(0, 1.01, 0.1))
+
+    # Remove legend from first subplot
+    axes[0].legend_.remove()
+
+    # Bar plot with custom y-axis scale: (y_lim[0] - y_lim[1])
+    _ = sns.barplot(
+        x='model_name',
+        y='value',
+        hue='metric',
+        data=df_long,
+        order=order,
+        palette="Accent",
+        errorbar=None,
+        edgecolor="black",
+        linewidth=1.2,
+        ax=axes[1]
+    )
+
+    axes[1].set_title(
+        'Vista a escala detallada',
+        fontsize=13,
+        color='dimgray',
+        weight='bold'
+    )
+
+    axes[1].set_ylabel(f'Score ({y_lim[0]}-{y_lim[1]})', fontsize=12)
+    axes[1].set_xlabel('Modelo')
+
+    axes[1].set_ylim(y_lim[0], y_lim[1])
+    axes[1].grid(axis='y', linestyle='--', alpha=0.6, linewidth=0.8)
+    axes[1].set_yticks(np.arange(y_lim[0], y_lim[1]+ 0.01, 0.02))
+
+    # Remove legend from second subplot
+    axes[1].legend_.remove()
+
+    # Drop spines
+    axes[0].spines['top'].set_visible(False)
+    axes[0].spines['right'].set_visible(False)
+    axes[1].spines['top'].set_visible(False)
+    axes[1].spines['right'].set_visible(False)
+
+    # Share Legend
+    handles, labels = ax1.get_legend_handles_labels()
+
+    fig.legend(
+        handles,
+        labels,
+        loc='lower center',
+        bbox_to_anchor=(0.5, 0.02),
+        ncol=2,
+        frameon=True,
         title="Métrica"
     )
 
-    # Drop spines
-    ax_1.spines['top'].set_visible(False)
-    ax_1.spines['right'].set_visible(False)
-    plt.tight_layout()
-    plt.show()                  
-    
+    plt.tight_layout(rect=[0, 0.06, 1, 1])
+    plt.show()
+
     # ---------------------------------------------------------
     # BOX PLOT
     # ---------------------------------------------------------
@@ -1015,8 +1036,18 @@ def analyze_global_performance(df, y_lim = [0.8, 1], metric_gain='f1_macro'):
         linewidth = 1.2   
     )
 
-    plt.title('Distribución del rendimiento en Nested Cross Validation', fontsize=14, pad=15, weight='bold')
-    plt.ylabel('Score', fontsize=12, labelpad=10, color='black')
+    ax_2.set_title('Distribución del rendimiento en Nested Cross Validation', fontsize=14, pad=15, weight='bold')
+    ax_2.text(
+        0.5, 0.98,
+        'Vista a escala detallada',
+        fontsize=12,
+        color='dimgray',
+        weight='bold',
+        ha="center",          
+        va="bottom",          
+        transform=ax_2.transAxes   
+    )
+    plt.ylabel(f'Score ({y_lim[0]}-{y_lim[1]})', fontsize=12, labelpad=10, color='black')
     plt.xlabel('Modelo', fontsize=12, labelpad=10, color='black')
     plt.ylim(y_lim[0], y_lim[1])
     ax_2.grid(axis='y', linestyle='--', alpha=0.6, linewidth=0.8)
@@ -1042,7 +1073,7 @@ def analyze_global_performance(df, y_lim = [0.8, 1], metric_gain='f1_macro'):
     # ABSOLUTE DIFFERENCES HEAT MAP
     # =========================================================
     gain_df = df.groupby('model_name')[metric_gain].agg(['mean']).sort_values(by="mean")
-    
+
     # Calculate absolute differences between models
     mean_values = gain_df["mean"].values
     dif_matrix = np.abs(mean_values [:, None] - mean_values)*100
@@ -1184,7 +1215,204 @@ def plot_confusion_matrix(cm_df, label_map, model_name):
     plt.show()
 
 
-def compare_class_metrics(df, model_A, model_B, label_map, y_lim=[0.5, 1]):
+def compare_class_metrics_detailed(df, model_A, model_B, label_map, y_lim=[0.5, 1]):
+    """
+    Compare the class-wise performance of two models:
+    - model_A represents a transparent (interpretable) model
+    - model_B represents a non-interpretable black box model.
+
+    This function generates two visual analyses:
+    1. A grouped bar plot showing the F1-score per class for two models.
+    2. A heatmap showing the relative difference (Model B - Model A) in precision
+       and recall for each class.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        DataFrame containing classification metrics per class and model.
+        Expected columns:
+        - 'class': class labels
+        - 'model_name': model identifiers
+        - 'precision': precision values per class
+        - 'recall': recall values per class
+        - 'f1-score': F1-score values per class
+
+    model_A : str
+        Name of the model used as reference for comparison.
+
+    model_B : str
+        Name of the second model whose performance is compared against model_A.
+
+    label_map : dict
+        Dictionary used to map raw class labels to readable names.
+
+    y_lim : list of float [optional, default=[0.5, 1] ]
+        Y-axis limits for the F1-score bar plot, defined as [min, max].
+
+    Returns
+    -------
+    None
+    """
+
+    # Work with a copy dataframe
+    class_report_df = df.copy()
+    # Format model names to replace '_' by ' '
+    class_report_df['model_name'] = class_report_df['model_name'].str.replace('_',' ')
+    model_A = model_A.replace('_', ' ')
+    model_B = model_B.replace('_', ' ')
+
+    # Label mapping to use redeable names
+    class_report_df["class"] = class_report_df["class"].astype(int).replace(label_map)
+    
+    # ---------------------------------------------------------
+    # F1-SCORE BAR PLOT
+    # ---------------------------------------------------------
+
+    fig, axes = plt.subplots(
+        2, 1,                 
+        figsize=(10, 12),
+        sharex=True           
+    )
+    fig.suptitle(
+        'Comparativa de F1-Score por clase',
+        fontsize=16,
+        weight='bold'
+    )
+    # Bar plot with full y-axis scale
+    ax_1 = sns.barplot(
+        x='class', 
+        y='f1-score', 
+        hue='model_name', 
+        data=class_report_df,
+        palette="pastel",
+        edgecolor="black",
+        linewidth = 1.2,   
+        ax=axes[0]
+    )
+
+    axes[0].set_title(
+        'Vista a escala completa',
+        fontsize=13,
+        color='dimgray',
+        weight='bold'
+    )
+
+    axes[0].set_ylabel('F1-Score (0-1)', fontsize=12, labelpad=10, color='black')
+    axes[0].set_xlabel('')
+    axes[0].set_ylim(0, 1)
+    axes[0].grid(axis='y', linestyle='--', alpha=0.6, linewidth=0.8)
+    axes[0].set_yticks(np.arange(0, 1.01, 0.1))
+
+    # Bar plot with custom y-axis scale: (y_lim[0] - y_lim[1])
+    _ = sns.barplot(
+        x='class', 
+        y='f1-score', 
+        hue='model_name', 
+        data=class_report_df,
+        palette="pastel",
+        edgecolor="black",
+        linewidth = 1.2,   
+        ax=axes[1]
+    )
+
+    axes[1].set_title(
+        'Vista a escala detallada',
+        fontsize=13,
+        color='dimgray',
+        weight='bold'
+    )
+
+    axes[1].set_ylabel(f'F1-Score ({y_lim[0]}-{y_lim[1]})', fontsize=12, labelpad=10, color='black')
+    axes[1].set_xlabel('Grado de cerramiento', fontsize=12, labelpad=10, color='black')
+    axes[1].set_ylim(y_lim[0], y_lim[1])
+    axes[1].grid(axis='y', linestyle='--', alpha=0.6, linewidth=0.8)
+    axes[1].set_yticks(np.arange(y_lim[0], y_lim[1]+ 0.01, 0.02))    
+
+    # Remove legend from subplots
+    axes[0].legend_.remove()
+    axes[1].legend_.remove()
+
+    # Drop spines
+    axes[0].spines['top'].set_visible(False)
+    axes[0].spines['right'].set_visible(False)
+    axes[1].spines['top'].set_visible(False)
+    axes[1].spines['right'].set_visible(False)
+
+
+    # Share Legend
+    handles, labels = ax_1.get_legend_handles_labels()
+
+    fig.legend(
+        handles,
+        labels,
+        loc='lower center',
+        bbox_to_anchor=(0.5, 0.02),
+        ncol=2,
+        frameon=True,
+        title="Métrica"
+    )
+
+    plt.tight_layout(rect=[0, 0.06, 1, 1])
+    plt.show()
+
+    # ---------------------------------------------------------
+    # PRECISION AND RECALL RELATIVE DIFFERENCE
+    # ---------------------------------------------------------
+    df_pivot = class_report_df.pivot_table(
+        index='class',
+        columns='model_name',
+        values=['precision', 'recall']
+    )
+
+    # Calculate the gain of model B with respect to model A
+    gain_precision = ( (df_pivot['precision'][model_B] - df_pivot['precision'][model_A])/df_pivot['precision'][model_A] ) * 100
+    gain_recall = ( (df_pivot['recall'][model_B] - df_pivot['recall'][model_A])/df_pivot['recall'][model_A] ) * 100
+
+    # Store results in dataframe to plot in heatmap
+    df_gain = pd.DataFrame({
+        'Precision': gain_precision,
+        'Recall': gain_recall
+    })
+
+    # Order dataframe according label class
+    order = [label_map[k] for k in sorted(label_map.keys(), key=int)]
+    df_gain = df_gain.reindex(order)
+
+    plt.figure(figsize=(9, 6))
+    ax = sns.heatmap(
+        df_gain,
+        annot=True,
+        fmt=".3f",
+        vmin=0,
+        vmax=100,
+        cmap="coolwarm",
+        center=0,
+        linewidths=0.8,
+        linecolor="white",
+        cbar_kws={"label": "Diferencia relativa (%)"},
+        annot_kws={"size": 12, "weight": "bold"}
+    )
+
+    # Title and subtitle
+    plt.title(
+        f"Diferencia relativa de {model_B} (caja negra)\n respecto a {model_A} (transparente)",
+        fontsize=13,
+        fontweight="bold",
+        pad=10
+    )
+    plt.xlabel("Métrica", fontsize=12, labelpad=10)
+    plt.ylabel("Grado de cerramiento", fontsize=12, labelpad=10)
+    ax.set_xticklabels(ax.get_xticklabels(), fontsize=11)
+    ax.set_yticklabels(ax.get_yticklabels(), fontsize=11, rotation=0)
+
+    for spine in ax.spines.values():
+        spine.set_visible(False)
+
+    plt.tight_layout()
+    plt.show()
+
+
+def compare_class_metrics(df, model_A, model_B, label_map, y_lim=[0, 1]):
     """
     Compare the class-wise performance of two models:
     - model_A represents a transparent (interpretable) model
@@ -1251,7 +1479,7 @@ def compare_class_metrics(df, model_A, model_B, label_map, y_lim=[0.5, 1]):
     plt.xlabel('Grado de cerramiento', fontsize=12, labelpad=10, color='black')
     plt.ylim(y_lim[0], y_lim[1])
     ax_1.grid(axis='y', linestyle='--', alpha=0.6, linewidth=0.8)
-    ax_1.set_yticks(np.arange(y_lim[0], y_lim[1] + 0.01, 0.05))
+    ax_1.set_yticks(np.arange(y_lim[0], y_lim[1] + 0.01, 0.1))
 
     # Plot legend in the bottom
     sns.move_legend(
@@ -1324,4 +1552,3 @@ def compare_class_metrics(df, model_A, model_B, label_map, y_lim=[0.5, 1]):
 
     plt.tight_layout()
     plt.show()
-
