@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 from dtreeviz import model
 import joblib
+from IPython.display import display
 
 # ==============================================================================
 # MULTINOMIAL LOGISTIC REGRESSION
@@ -626,22 +627,15 @@ def get_visual_decision_tree(config, model_path):
 
 def get_leaf_classes_distribution(config, model_path):
     """
-    TO DO
+    This method display a table with the class distribution of the
+    leaf nodes of a decision tree model.
 
     Parameters
     ----------
     config : object
         Configuration object containing project parameters. Must include:
-        - DATASET_PATH : str or Path
-            Path to the input dataset CSV file.
-        - ID_VARIABLE : str
-            Column name of the unique identifier.
-        - TARGET_VARIABLE : str
-            Column name of the target variable.
         - TARGET_LABEL_MAP : dict
             Dictionary mapping original encoded labels to their readable names.
-        - IMAGES_DIR : str or Path
-            Directory path where the output SVG visualization will be saved.
 
     model_path : str
         Path to the serialized model artifact (joblib .pkl file). This file 
@@ -650,26 +644,26 @@ def get_leaf_classes_distribution(config, model_path):
 
     Returns
     -------
-
+    leaf_df : pandas.DataFrame
+        DataFrame containing the resulting table
     """    
     # =========================================================
     # LOAD CONFIGURATION VARIABLES
     # =========================================================
-    # Mapping from encoded labels to readable names
-    
     target_label_map = config.TARGET_LABEL_MAP
+
     # Econde target label map in [0,...,K-1] range
     class_names = {
         k - 1: v
         for k, v in target_label_map.items()
     }
+
     # =========================================================
     # LOAD MODEL FROM PKL FILE
     # =========================================================
     DT_artifacts = joblib.load(model_path)
 
     DT_model = DT_artifacts["model"]
-    DT_encoder = DT_artifacts["label_encoder"]
     DT_name = DT_artifacts["name"]
 
     print(f"{DT_name} model successfully loaded from pkl file.")
@@ -684,14 +678,13 @@ def get_leaf_classes_distribution(config, model_path):
 
     # List to store leaf data distributions
     leaf_data = []
-
     for node_id in leaf_nodes:
         # Get number of samples for each class in the leaf
         count_classes = tree.value[node_id][0]
         total_samples = tree.n_node_samples[node_id]
         sum_values_per_leaf = np.sum(count_classes)
 
-        # Calcualte percentage
+        # Calcualte percentage of samples
         if total_samples > 0:
             percentage = (count_classes / sum_values_per_leaf) * 100
         else:
@@ -711,14 +704,47 @@ def get_leaf_classes_distribution(config, model_path):
         # Add samples percentage of each class
         for i, value in enumerate(classes):
             name = class_names.get(value)
-            fila[f'Pct_{name}'] = round(percentage[i], 2)
+            fila[f'{name} (%)'] = round(percentage[i], 2)
             
-        # Añadir la columna de la clase dominante
-        fila['Clase_Dominante'] = dom_class_name
+        # Add dominant class column
+        fila['Clase dominante'] = dom_class_name
         
         leaf_data.append(fila)
 
-        # 4. Crear el DataFrame final
-        leaf_df = pd.DataFrame(leaf_data)
+    # Create final dataframe
+    leaf_df = pd.DataFrame(leaf_data)
+
+    # Map internal node_ids to the leaf IDs set in the image
+    leaf_id_map = {
+        25 : 1,
+        26 : 2,
+        22 : 3,
+        23 : 4,
+        24 : 5,
+        14 : 6,
+        12 : 7,
+        15 : 8,
+        16 : 9,
+        27 : 10,
+        28 : 11,
+        8  : 12,
+        6  : 13,
+        17 : 14,
+        18 : 15
+    }
+    leaf_df['Leaf_ID'] = leaf_df['Leaf_ID'].map(leaf_id_map).astype(int)
+    leaf_df = leaf_df.sort_values(by="Leaf_ID")
+
+    # Display table
+    display(
+        leaf_df.style
+        .hide(axis="index")
+        .format(precision=2)
+        .set_caption("Distribución de clases por hoja")
+        .set_properties(**{
+            'text-align': 'center',
+            'border': '1px solid black'
+        })
+    )
 
     return leaf_df
