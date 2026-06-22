@@ -1,11 +1,18 @@
+"""
+TO-DO
+"""
+
 import os
+import joblib
 import numpy as np
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 import matplotlib as mpl
+import shap
+from sklearn.model_selection import train_test_split
 from dtreeviz import model
-import joblib
+
 from IPython.display import display
 
 # ==============================================================================
@@ -748,3 +755,499 @@ def get_leaf_classes_distribution(config, model_path):
     )
 
     return leaf_df
+
+
+# ==============================================================================
+# SHAP
+# ==============================================================================
+
+def get_shap_svm(config, model_path, background_size=100, kernel_samples=150):
+    """
+    This function loads a SVM trained model from a serialized artifact, 
+    constructs a background dataset for SHAP estimation using stratified sampling, and
+    computes SHAP values using the KERNEL SHAP explainer.
+
+    Parameters
+    ----------
+    config : object
+        Configuration object containing project parameters. Must include:
+        - DATASET_PATH : str or Path
+            Path to the input dataset CSV file.
+        - OUTPUT_DIR: str or Path
+            Path to the output folder.
+        - ID_VARIABLE : str
+            Column name of the unique identifier.
+        - TARGET_VARIABLE : str
+            Column name of the target variable.
+        - SEED: int
+            Seed for reproducibility
+
+    model_path : str
+        Path to the serialized model artifact (joblib .pkl file). This file 
+        is expected to contain a dictionary with the trained "model", the 
+        "label_encoder", and the model "name".
+
+    background_size : int [optional, default=100]
+        Number of samples used to construct the SHAP background dataset.
+
+    kernel_samples : int, [optional, default=150]
+        Number of Monte Carlo samples used by the Kernel SHAP estimator.
+    Returns
+    -------
+    shap_values : numpy array
+        Array of SHAP values with shape (n_samples, n_features, n_classes).
+    """
+
+    # =========================================================
+    # LOAD CONFIGURATION VARIABLES
+    # =========================================================
+
+    # Paths and folders
+    dataset_path = config.DATASET_PATH
+    output_dir = config.OUTPUT_DIR
+
+    # Identifier and target variables
+    id_variable = config.ID_VARIABLE
+    target_variable = config.TARGET_VARIABLE
+
+    # Seed for reproducibility
+    seed = config.SEED
+
+
+    # =========================================================
+    # LOAD MODEL FROM PKL FILE
+    # =========================================================
+    artifacts = joblib.load(model_path)
+
+    model = artifacts["model"]
+    model_name = artifacts["name"]
+
+    print(f"{model_name} model successfully loaded from pkl file.")
+
+    # =========================================================
+    # PREPARE FEATURE AND TARGET VARIABLES
+    # =========================================================
+
+    # Get features and target from dataset
+    data_df = pd.read_csv(dataset_path)
+    X = data_df.drop(
+        columns=[id_variable, target_variable]
+    ).copy()
+    y = data_df[target_variable].copy()
+
+    # =========================================================
+    # STRATIFIED SPLIT FOR BACKGROUND DATA
+    # =========================================================
+    background, _, _, _ = train_test_split(
+    X,
+    y,
+    train_size=background_size,
+    stratify=y,
+    random_state=seed
+    )
+
+    # =========================================================
+    # GET SHAP VALUES WITH KERNEL SHAP EXPLAINER
+    # =========================================================
+    explainer = shap.KernelExplainer(
+        model.predict_proba,
+        background
+    )
+    print("Get shap values with KernelExplainer...")
+    shap_values = explainer.shap_values(X, nsamples=kernel_samples)
+    print("Shap values calculated succesfully.")
+    print(f"Array size: {shap_values.shape}")
+
+    # =========================================================
+    # SAVE RESULTS
+    # =========================================================
+    
+    # Create output folder to store shap values numpy array
+    output_custom_dir = os.path.join(
+        output_dir,
+        "SHAP_global"
+    )
+    os.makedirs(output_custom_dir, exist_ok=True)
+    print("\nSaving results...")
+    print(f"Output directory: {output_custom_dir}")
+
+    np.save(os.path.join(output_custom_dir, f"{model_name}_shap_global.npy"),
+            shap_values)
+    
+    return shap_values
+
+
+def get_shap_tree(config, model_path):
+    """
+    This function loads a based-tree trained model from a serialized artifact and 
+    computes shap values using TREE SHAP Explainer
+
+    Parameters
+    ----------
+    config : object
+        Configuration object containing project parameters. Must include:
+        - DATASET_PATH : str or Path
+            Path to the input dataset CSV file.
+        - OUTPUT_DIR: str or Path
+            Path to the output folder.
+        - ID_VARIABLE : str
+            Column name of the unique identifier.
+        - TARGET_VARIABLE : str
+            Column name of the target variable.
+
+    model_path : str
+        Path to the serialized model artifact (joblib .pkl file). This file 
+        is expected to contain a dictionary with the trained "model", the 
+        "label_encoder", and the model "name".
+
+    Returns
+    -------
+    shap_values : numpy array
+        Array of SHAP values with shape (n_samples, n_features, n_classes).
+    """
+
+    # =========================================================
+    # LOAD CONFIGURATION VARIABLES
+    # =========================================================
+
+    # Paths and folders
+    dataset_path = config.DATASET_PATH
+    output_dir = config.OUTPUT_DIR
+
+    # Identifier and target variables
+    id_variable = config.ID_VARIABLE
+    target_variable = config.TARGET_VARIABLE
+
+    # =========================================================
+    # LOAD MODEL FROM PKL FILE
+    # =========================================================
+    artifacts = joblib.load(model_path)
+
+    model = artifacts["model"]
+    model_name = artifacts["name"]
+
+    print(f"{model_name} model successfully loaded from pkl file.")
+
+    # =========================================================
+    # GET TRAIN DATASET
+    # =========================================================
+    data_df = pd.read_csv(dataset_path)
+    X = data_df.drop(
+        columns=[id_variable, target_variable]
+    ).copy()
+
+    # =========================================================
+    # GET SHAP VALUES WITH TREEE SHAP EXPLAINER
+    # =========================================================
+    if model_name == "XGBoost":
+        # Use internal model attribute of BalancedXGBClassifier wrapper
+        explainer = shap.TreeExplainer(model.model)
+    else:
+        explainer = shap.TreeExplainer(model)
+
+    print("Get shap values with KernelExplainer...")
+    shap_values = explainer.shap_values(X)
+    print("Shap values calculated succesfully.")
+    print(f"Array size: {shap_values.shape}")        
+
+    # =========================================================
+    # SAVE RESULTS
+    # =========================================================
+    
+    # Create output folder to store shap values numpy array
+    output_custom_dir = os.path.join(
+        output_dir,
+        "SHAP_global"
+    )
+    os.makedirs(output_custom_dir, exist_ok=True)
+    print("\nSaving results...")
+    print(f"Output directory: {output_custom_dir}")
+
+    np.save(os.path.join(output_custom_dir, f"{model_name}_shap_global.npy"),
+            shap_values)
+    
+    return shap_values
+
+
+def plot_shap_global_feature_importance(config, shap_values, model_name, num_features_display=10, figsize=[10,8]):
+    """
+    This function computes the global feature importance by averaging
+    the absolute SHAP values across all samples and classes, and
+    generates a SHAP bar plot.
+
+    Parameters
+    ----------
+    config : object
+        Configuration object containing project parameters. Must include:
+        - DATASET_PATH : str or Path
+            Path to the input dataset CSV file.
+        - ID_VARIABLE : str
+            Column name of the unique identifier variable.
+        - TARGET_VARIABLE : str
+            Column name of the target variable.
+
+    shap_values : numpy.ndarray
+        SHAP values array with shape (n_samples, n_features, n_classes)
+        where:
+        - n_samples is the number of observations,
+        - n_features is the number of input variables,
+        - n_classes is the number of target classes.
+
+    model_name : str
+        Name of the model used for the plot subtitle.
+
+    num_features_display : int [optional, default=10]
+        Maximum number of features displayed in the SHAP bar plot.
+    
+    figsize: list [optional, default=[10,8]]
+        Width and height values of the graph.
+
+    Returns
+    -------
+    None
+        Displays the SHAP global feature importance plot.
+    """
+
+    # =========================================================
+    # LOAD CONFIGURATION VARIABLES
+    # =========================================================
+
+    # Paths and folders
+    dataset_path = config.DATASET_PATH
+
+    # Identifier and target variables
+    id_variable = config.ID_VARIABLE
+    target_variable = config.TARGET_VARIABLE 
+
+    # =========================================================
+    # GET TRAIN DATA
+    # =========================================================
+    data_df = pd.read_csv(dataset_path)
+    X = data_df.drop(
+        columns=[id_variable, target_variable]
+    ).copy()
+
+    # =========================================================
+    # GLOBAL BAR PLOT
+    # =========================================================    
+    
+    # Calculate SHAP mean values
+    shap_values_global = np.mean(np.abs(shap_values), axis=2)
+    
+    # Create SHAP explainer object
+    explainer_values = shap.Explanation(
+        values=shap_values_global,
+        data = X.values, 
+        feature_names= X.columns
+    )
+
+    # SHAP bar plot method
+    shap.plots.bar(
+        explainer_values,
+        max_display=num_features_display,
+        show_data=False,
+        show=False,
+    )
+
+    # Custom figsize with matplotlib
+    fig = plt.gcf()  
+    fig.set_size_inches(figsize[0], figsize[1]) 
+
+    # Custom title and axis
+    plt.suptitle(
+        "Importancia global de variables con SHAP",
+        fontsize=14,
+        fontweight="bold",
+        y=0.98,
+        x=0.6, 
+    )
+    plt.title(
+        f"Modelo {model_name}",
+        fontsize=13,
+        color='dimgray',
+        weight='bold',
+    )
+    plt.xlabel(
+        "Average impact on model output (mean|SHAP value|)",
+        fontsize=12,
+        fontweight="bold",
+        labelpad=10
+    )
+    plt.ylabel(
+        "Variable",
+        fontsize=12,
+        fontweight="bold",
+        labelpad=10        
+    )
+    plt.grid(axis="x", linestyle="--", alpha=0.5, zorder=0)
+    
+    plt.tight_layout()
+    plt.show()
+
+
+def plot_shap_class_dashboard(config, shap_values, class_label, model_name, num_features_display=10, figsize=[18, 10]):
+    """
+    Generate a side-by-side SHAP analysis visualization for a specific target class.
+
+    This function creates a single figure containing two subplots side by side:
+    1. A global feature importance bar plot showing the average impact on the 
+       selected class output.
+    2. A beeswarm plot displaying the detailed distribution of local impacts 
+       (One-vs-Rest) for the selected class.
+
+    Parameters
+    ----------
+    config : object
+        Configuration object containing project parameters. Must include:
+        - DATASET_PATH : str or Path
+            Path to the input dataset CSV file.
+        - ID_VARIABLE : str
+            Column name of the unique identifier variable.
+        - TARGET_VARIABLE : str
+            Column name of the target variable.
+        - TARGET_LABEL_MAP: dict
+            Dictionary mapping original encoded labels to their readable names.
+
+    shap_values : numpy.ndarray
+        SHAP values array with shape (n_samples, n_features, n_classes)
+        where:
+        - n_samples is the number of observations,
+        - n_features is the number of input variables,
+        - n_classes is the number of target classes.
+
+    class_label: str
+        Label of the class to analyze.
+
+    model_name : str
+        Name of the model used for the plot subtitle.
+
+    num_features_display : int [optional, default=10]
+        Maximum number of features displayed in the SHAP bar plot.
+    
+    figsize: list [optional, default=[18, 10]]
+        Width and height values of the graph.
+
+    Returns
+    -------
+    None
+        
+    """
+    # =========================================================
+    # LOAD CONFIGURATION VARIABLES
+    # =========================================================
+
+    # Paths and folders
+    dataset_path = config.DATASET_PATH
+
+    # Identifier and target variables
+    id_variable = config.ID_VARIABLE
+    target_variable = config.TARGET_VARIABLE 
+
+    # Mapping from encoded labels to readable names
+    target_label_map = config.TARGET_LABEL_MAP
+
+    # =========================================================
+    # GET TRAIN DATA
+    # =========================================================
+    data_df = pd.read_csv(dataset_path)
+    X = data_df.drop(
+        columns=[id_variable, target_variable]
+    ).copy()
+
+    # Econde target label map in [0,...,K-1] range
+    class_names = {
+        k - 1: v
+        for k, v in target_label_map.items()
+    }
+
+    # =========================================================
+    # EXPLAINER OBJECT
+    # =========================================================
+    
+    # Find class encode number associated to readable name
+    class_value = next(k for k, v in class_names.items() if v == class_label)
+
+    # Select SHAP values for current class
+    shap_values_class = shap_values[:,:,class_value]
+
+    # Create SHAP explainer object
+    explainer_values = shap.Explanation(
+        values=shap_values_class,
+        data = X.values, 
+        feature_names= X.columns
+    )
+
+    # =========================================================
+    # INITIALIZE SUBPLOTS WITH MATPLOTLIB
+    # =========================================================
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=figsize)
+
+    # =========================================================
+    # SHAP BAR PLOT (Left graph)
+    # =========================================================
+    
+    plt.sca(ax1) 
+    shap.plots.bar(
+        explainer_values,
+        max_display=num_features_display,
+        show_data=False,
+        show=False,
+    )
+
+    # Custom title and axis
+    ax1.set_title("Importancia de variables", fontsize=16, fontweight="bold", pad=15)
+    ax1.set_xlabel("Average impact on model output (mean|SHAP value|)", fontsize=14, fontweight="bold", labelpad=10)
+    ax1.grid(axis="x", linestyle="--", alpha=0.5, zorder=0)
+
+    # =========================================================
+    # BEESWARM PLOT (Righ graph)
+    # =========================================================
+    plt.sca(ax2)
+    shap.plots.beeswarm(
+        explainer_values,
+        max_display=num_features_display,
+        color_bar=False,
+        show=False
+    )
+
+    # Custom title and axis 
+    ax2.set_title("Dirección y magnitud del impacto (gráfico Beeswarm)", fontsize=16, fontweight="bold", pad=15)
+    ax2.set_xlabel("Impact on model output (SHAP value)", fontsize=14, fontweight="bold", labelpad=10)
+    ax2.grid(axis="x", linestyle="--", alpha=0.5, zorder=0)
+    
+    # Color legend
+    ax2.scatter([], [], c="blue", label="0 (Ausencia)")
+    ax2.scatter([], [], c="red", label="1 (Presencia)")
+    ax2.legend(
+        title="Valor de la variable",
+        loc="lower right",       
+        framealpha=0.9,          
+        facecolor="white",       
+        edgecolor="gray",      
+        bbox_to_anchor=(0.98, 0.05),
+        fontsize=12,
+        title_fontsize=12,
+    )
+
+    # =========================================================
+    # FORCE GLOBAL FIGSIZE AND TITLE
+    # =========================================================
+    fig.set_size_inches(figsize[0], figsize[1])
+
+    # Global title and suptitle
+    fig.suptitle(
+        f"Analisis del grado de cerramiento ''{class_label}'' con SHAP",
+        fontsize=18,
+        fontweight="bold",
+        y=1.02 
+    )
+    fig.text(
+        0.5, 0.96, 
+        f"Modelo {model_name}",
+        fontsize=16,
+        color='dimgray',
+        weight='bold',
+        ha='center' 
+    )
+    plt.tight_layout()
+    plt.show()
