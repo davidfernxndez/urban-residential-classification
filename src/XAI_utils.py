@@ -1,5 +1,8 @@
 """
-TO-DO
+This module contains methods and functions for performing interpretability analysis of the following models:
+- Multinomial logistic regression: Using the model coefficients.
+- Decision tree: Using impurity reduction and tree visualization (rule extraction).
+- Black-box models (SVM, Random Forest, and XGBoost): Using SHAP post-hoc method.
 """
 
 import os
@@ -761,7 +764,7 @@ def get_leaf_classes_distribution(config, model_path):
 # SHAP
 # ==============================================================================
 
-def get_shap_svm(config, model_path, background_size=100, kernel_samples=150):
+def get_shap_svm(config, model_path, background_size=100, kernel_samples=500):
     """
     This function loads a SVM trained model from a serialized artifact, 
     constructs a background dataset for SHAP estimation using stratified sampling, and
@@ -1056,14 +1059,14 @@ def plot_shap_global_feature_importance(config, shap_values, model_name, num_fea
     # Custom title and axis
     plt.suptitle(
         "Importancia global de variables con SHAP",
-        fontsize=14,
+        fontsize=13,
         fontweight="bold",
         y=0.98,
-        x=0.6, 
+        x=0.55, 
     )
     plt.title(
         f"Modelo {model_name}",
-        fontsize=13,
+        fontsize=16,
         color='dimgray',
         weight='bold',
     )
@@ -1081,6 +1084,150 @@ def plot_shap_global_feature_importance(config, shap_values, model_name, num_fea
     )
     plt.grid(axis="x", linestyle="--", alpha=0.5, zorder=0)
     
+    plt.tight_layout()
+    plt.show()
+
+
+def plot_shap_heatmap(config, shap_values, model_name, figsize=[10,8]):
+    """
+    This function computes the global feature importance per class by averaging
+    the absolute SHAP values across all samples and
+    generates a Heat Map.
+
+    Parameters
+    ----------
+    config : object
+        Configuration object containing project parameters. Must include:
+        - DATASET_PATH : str or Path
+            Path to the input dataset CSV file.
+        - ID_VARIABLE : str
+            Column name of the unique identifier variable.
+        - TARGET_VARIABLE : str
+            Column name of the target variable.
+        - TARGET_LABEL_MAP: dict
+            Dictionary mapping original encoded labels to their readable names.
+
+    shap_values : numpy.ndarray
+        SHAP values array with shape (n_samples, n_features, n_classes)
+        where:
+        - n_samples is the number of observations,
+        - n_features is the number of input variables,
+        - n_classes is the number of target classes.
+
+    model_name : str
+        Name of the model used for the plot subtitle.
+ 
+    figsize: list [optional, default=[10,8]]
+        Width and height values of the graph.
+
+    Returns
+    -------
+    None
+        Displays the SHAP Heat Map feature importance plot per class.
+    """
+
+    # =========================================================
+    # LOAD CONFIGURATION VARIABLES
+    # =========================================================
+
+    # Paths and folders
+    dataset_path = config.DATASET_PATH
+
+    # Identifier and target variables
+    id_variable = config.ID_VARIABLE
+    target_variable = config.TARGET_VARIABLE 
+
+    # Mapping from encoded labels to readable names
+    target_label_map = config.TARGET_LABEL_MAP
+
+    # =========================================================
+    # GET FEATURES NAME
+    # =========================================================
+    data_df = pd.read_csv(dataset_path)
+    feature_names = data_df.drop(
+        columns=[id_variable, target_variable]
+    ).columns
+
+    # =========================================================
+    # HEATMAP
+    # =========================================================  
+    
+    # Get mean SHAP value per class
+    mean_shap_values = np.mean(np.abs(shap_values), axis=0)
+
+    fig, ax = plt.subplots(figsize=(figsize[0], figsize[1]))
+
+    # Heatmap
+    im = ax.imshow(
+        mean_shap_values,
+        aspect='auto',
+        cmap='viridis',          
+        interpolation='nearest'
+    )
+
+    # Custom Title and axes
+    fig.suptitle(
+        "Importancia de variables por clase",
+        fontsize=14,
+        fontweight="bold",
+        y=0.97
+    )
+    ax.set_title(
+        f"Modelo {model_name}",
+        fontsize=15,
+        color='dimgray',
+        pad=12
+    )
+    ax.set_xlabel(
+        "Grado de cerramiento",
+        fontsize=13,
+        fontweight="bold",
+        labelpad=12
+    )
+    ax.set_ylabel(
+        "Variables",
+        fontsize=13,
+        fontweight="bold",
+        labelpad=12
+    )
+    ax.set_xticks(np.arange(len(target_label_map)))
+    ax.set_xticklabels(
+        list(target_label_map.values()),
+        fontsize=11,
+        rotation=0
+    )
+    ax.set_yticks(np.arange(len(feature_names)))
+    ax.set_yticklabels(
+        feature_names,
+        fontsize=10
+    )
+    ax.tick_params(axis='both', which='major', length=0)
+
+    # Add grid between cells to get better visibility
+    ax.set_xticks(np.arange(-0.5, len(target_label_map), 1), minor=True)
+    ax.set_yticks(np.arange(-0.5, len(feature_names), 1), minor=True)
+    ax.grid(which='minor', color='white', linestyle='-', linewidth=0.8)
+    ax.tick_params(which='minor', bottom=False, left=False)
+
+    # Color bar (legend)
+    cbar = fig.colorbar(
+        im,
+        ax=ax,
+        fraction=0.03,
+        pad=0.02
+    )
+    cbar.set_label(
+        "Mean(|SHAP value|)",
+        fontsize=11,
+        labelpad=15
+    )
+    cbar.ax.tick_params(labelsize=12)
+
+    # Drop spines
+    for spine in ax.spines.values():
+        spine.set_visible(False)
+
+    # Show image
     plt.tight_layout()
     plt.show()
 
