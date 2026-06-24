@@ -15,6 +15,9 @@ import matplotlib as mpl
 import shap
 from sklearn.model_selection import train_test_split
 from dtreeviz import model
+from sklearn.preprocessing import LabelEncoder
+import ast
+import copy
 
 from IPython.display import display
 
@@ -761,7 +764,7 @@ def get_leaf_classes_distribution(config, model_path):
 
 
 # ==============================================================================
-# SHAP
+# SHAP GLOBAL
 # ==============================================================================
 
 def get_shap_svm(config, model_path, background_size=100, kernel_samples=500):
@@ -1056,20 +1059,27 @@ def plot_shap_global_feature_importance(config, shap_values, model_name, num_fea
     fig = plt.gcf()  
     fig.set_size_inches(figsize[0], figsize[1]) 
 
-    # Custom title and axis
-    plt.suptitle(
-        "Importancia global de variables con SHAP",
-        fontsize=13,
-        fontweight="bold",
-        y=0.98,
-        x=0.55, 
-    )
-    plt.title(
-        f"Modelo {model_name}",
+    # Main title with Model Name
+    fig.suptitle(
+        f"{model_name.upper()}",
         fontsize=16,
-        color='dimgray',
-        weight='bold',
+        color="midnightblue", 
+        weight="bold",
+        x=0.11, 
+        y=1,
+        ha="left"
     )
+    # Graph title
+    fig.text(
+        x=0.11,        
+        y=0.95,        
+        s="Importancia global de variables con SHAP",
+        fontsize=14,
+        color="midnightblue",
+        fontweight="bold",
+        ha="left"
+    )
+
     plt.xlabel(
         "Average impact on model output (mean|SHAP value|)",
         fontsize=12,
@@ -1165,19 +1175,27 @@ def plot_shap_heatmap(config, shap_values, model_name, figsize=[10,8]):
         interpolation='nearest'
     )
 
-    # Custom Title and axes
+    # Main title with Model Name
     fig.suptitle(
-        "Importancia de variables por clase",
+        f"{model_name.upper()}",
+        fontsize=16,
+        color="midnightblue", 
+        weight="bold",
+        x=0.11, 
+        y=1,
+        ha="left"
+    )
+    # Graph title
+    fig.text(
+        x=0.11,        
+        y=0.94,        
+        s="Importancia de variables por clase",
         fontsize=14,
+        color="midnightblue",
         fontweight="bold",
-        y=0.97
+        ha="left"
     )
-    ax.set_title(
-        f"Modelo {model_name}",
-        fontsize=15,
-        color='dimgray',
-        pad=12
-    )
+
     ax.set_xlabel(
         "Grado de cerramiento",
         fontsize=13,
@@ -1381,20 +1399,567 @@ def plot_shap_class_dashboard(config, shap_values, class_label, model_name, num_
     # =========================================================
     fig.set_size_inches(figsize[0], figsize[1])
 
-    # Global title and suptitle
+    # Main title with Model Name
     fig.suptitle(
-        f"Analisis del grado de cerramiento ''{class_label}'' con SHAP",
+        f"{model_name.upper()}",
         fontsize=18,
-        fontweight="bold",
-        y=1.02 
+        color="midnightblue", 
+        weight="bold",
+        x=0.12, 
+        y=1,
+        ha="left"
     )
+    # Graph title
     fig.text(
-        0.5, 0.96, 
-        f"Modelo {model_name}",
+        x=0.12,        
+        y=0.96,        
+        s=f"Analisis del grado de cerramiento ''{class_label}'' con SHAP",
         fontsize=16,
-        color='dimgray',
-        weight='bold',
-        ha='center' 
+        color="midnightblue",
+        fontweight="bold",
+        ha="left"
     )
+
     plt.tight_layout()
+    plt.show()
+
+
+
+# ==============================================================================
+# SHAP LOCAL
+# ==============================================================================
+
+def get_shap_out_of_fold(config, model, model_name):
+    """
+    This method computes out-of-fold predictions and local SHAP values using outer folds
+    of NCV configuration.
+ 
+    For each outer fold, it loads the optimal hyperparameters previously found during 
+    the inner CV loop, tunes the provided model, fits it on the outer training 
+    set, evaluates it on the outer test set, and extracts local feature importances 
+    using SHAP (SHapley Additive exPlanations) values.
+
+    Parameters
+    ----------
+    config : object
+        Configuration object containing project parameters. Must include:
+        - DATASET_PATH : str or Path
+            Path to input dataset CSV file
+        - DATA_FOLDS_DIR : str or Path 
+            Directory containing precomputed fold CSV files
+        - OUTPUT_DIR : str or Path 
+            Directory where results will be saved
+        - OUTER_SPLITS : int 
+            Number of outer CV folds to load correct files.
+        - INNER_SPLITS : int
+            Number of inner CV folds to load correct files.
+        - OUTER_FOLD_FILENAME: str 
+            Name of outer folds file.
+        - ID_VARIABLE : str 
+            Unique identifier column name 
+        - TARGET_VARIABLE : str
+            Target variable column name
+
+    model : object
+        A scikit-learn compatible model instance.
+
+    model_name : str
+        The name of the algorithm being evaluated (Only "XGBoost" and "Logistic_regression" are allowed)
+        This controls conditional logic for SHAP explainers and determines file naming.
+
+    Returns
+    -------
+    all_pred_info_df: pandas.DataFrame:
+        Out-of-fold predictions for all samples across all outer folds, including 
+        true targets, predicted classes, maximum probabilities, and fold indices.
+
+    all_shap_info_df: pandas.DataFrame:
+        Out-of-fold shap values for all samples across al outer folds.
+    
+    expected_shap_values_df: pandas.DataFrame:
+           The baseline/expected SHAP values (explainer base values) for each class 
+           across all outer folds.
+    """
+    # =========================================================
+    # VALIDATE MODEL COMPATIBILITY
+    # =========================================================
+    supported_models = ["XGBoost", "Logistic_Regression"]
+    if model_name not in supported_models:
+        raise ValueError(
+            f"\n" + "!"*80 + "\n"
+            f" ERROR: Model '{model_name}' is not currently supported in this method.\n"
+            f" Supported models are: {supported_models}\n"
+            f" Execution stopped.\n"
+            + "!"*80
+        )
+    
+    # =========================================================
+    # LOAD CONFIGURATION VARIABLES
+    # =========================================================
+    # Path and folders 
+    dataset_path = config.DATASET_PATH
+    folds_dir = config.DATA_FOLDS_DIR
+    output_dir = config.OUTPUT_DIR
+
+    # Nested Cross Validation splits size
+    outer_splits = config.OUTER_SPLITS
+    inner_splits = config.INNER_SPLITS
+
+    # Nested Cross Validation folds filenames
+    outer_file_name = config.OUTER_FOLD_FILENAME
+
+    # Unique identifier (CC) and target variables 
+    id_variable = config.ID_VARIABLE
+    target_variable = config.TARGET_VARIABLE
+
+    # =========================================================
+    # LOAD DATASET
+    # =========================================================
+    dataset_df = pd.read_csv(dataset_path)
+
+    # =========================================================
+    # LOAD OUTER NCV FOLDS
+    # =========================================================
+    outer_folds_df = pd.read_csv(
+        os.path.join(folds_dir, outer_file_name)
+    )
+
+    # =========================================================
+    # LOAD OPTIMAL HYPERPARAMETERS PER NCV FOLD
+    # =========================================================
+    hyperparam_path = os.path.join(
+        output_dir,
+        f"{outer_splits}x{inner_splits}_NCV",
+        f"{model_name}",
+        f"{model_name}_global_metrics.csv")
+    hyperparam_df = pd.read_csv(hyperparam_path)
+
+    # =========================================================
+    # LABEL ENCODING
+    # =========================================================
+
+    # Encode the K classes to the range of values ​​[0,..,K-1] so that
+    #  models like XGBoost can work correctly
+    label_encoder = LabelEncoder()
+    dataset_df[target_variable] = label_encoder.fit_transform(dataset_df[target_variable])
+
+    # =========================================================
+    # OUT-OF-FOLD PREDICTION+SHAP LOOP
+    # =========================================================  
+    pred_info_list = []
+    shap_info_list = []
+    expected_values_folds = []  
+
+    print("\n" + "="*80)
+    print(f" STARTING PROCESS: OUT-OF-FOLD PREDICTIONS & LOCAL SHAP".center(80))
+    print("="*80)
+    print(f" • Model Name      : {model_name}")
+    print(f" • Outer CV Folds  : {outer_splits}")
+    print("-"*80)
+
+    for outer_fold_idx in range(outer_splits):
+
+        print(f"\n[ FOLD {outer_fold_idx}/{outer_splits} ]".ljust(80, "-"))
+
+        # =========================================================
+        # TRAIN/TEST SET FOR CURRENT FOLD
+        # =========================================================  
+
+        # The samples used for the Outer Test Set are those 
+        # with the fold idx of the current outer_fold_idx
+        outer_test_ids = set(
+            outer_folds_df[
+                outer_folds_df["outer_fold_idx"]
+                == outer_fold_idx
+            ][id_variable]
+        )
+
+        # The Outer Train set consists of all samples with a different
+        # fold idx than the current outer_fold_idx
+        outer_train_ids = set(
+            outer_folds_df[
+                outer_folds_df["outer_fold_idx"]
+                != outer_fold_idx
+            ][id_variable]
+        )
+
+        # Build train/test dataframes with IDs
+        train_df = dataset_df[
+            dataset_df[id_variable].isin(outer_train_ids)
+        ].copy()
+
+        test_df = dataset_df[
+            dataset_df[id_variable].isin(outer_test_ids)
+        ].copy()
+
+        # Set id_variable as index for data storing procedure
+        train_df = train_df.set_index(id_variable)
+        test_df = test_df.set_index(id_variable)
+
+        # =====================================================
+        # TRAIN / TEST FEATURES & TARGET
+        # =====================================================
+
+        X_train = train_df.drop(
+            columns=[target_variable]
+        )
+        y_train = train_df[target_variable]
+
+        X_test = test_df.drop(
+            columns=[target_variable]
+        )
+        y_test = test_df[target_variable]
+
+        # =====================================================
+        # SET OPTIMAL HYPERPARAMETERS IN THE MODEL
+        # =====================================================        
+        best_params_str = hyperparam_df.loc[
+            hyperparam_df["outer_fold"] == outer_fold_idx, "best_params"
+        ].iloc[0]
+
+        # Convert string to dict
+        best_params_dict = ast.literal_eval(best_params_str)
+
+        print("Optimal hyperparameters for current fold:")
+        for param_name, param_values in best_params_dict.items():
+            print(f"{param_name:<25}: {param_values}")
+
+        # Remove model_ prefix
+        clean_params = {
+            key.replace("model__", ""): value
+            for key, value in best_params_dict.items()
+        }
+
+        # Get a model copy and set optimal hyperparameters
+        model_tuned = copy.deepcopy(model)
+        model_tuned.set_params(**clean_params)
+
+        # =====================================================
+        # TRAIN
+        # ===================================================== 
+        print("\nTraining     | Fitting model... ")
+        model_tuned.fit(X_train, y_train)
+
+        # =====================================================
+        # PREDICTION
+        # =====================================================
+        print("Predicting   | Generating out-of-fold predictions... ")
+        y_pred = model_tuned.predict(X_test)
+        y_pred_decoded = label_encoder.inverse_transform(y_pred)
+        y_proba = model_tuned.predict_proba(X_test)
+        max_prob = np.max(y_proba, axis=1)
+
+        # Store prediction information for current fold
+        pred_info_df = pd.DataFrame({
+            id_variable: test_df.index,
+            target_variable: label_encoder.inverse_transform(y_test),
+            f"{target_variable}_pred": y_pred_decoded,
+            "prob": max_prob,
+            "fold": outer_fold_idx
+        })
+
+        pred_info_list.append(pred_info_df)
+
+        # =====================================================
+        # GET SHAP VALUES
+        # ===================================================== 
+        if model_name == "XGBoost":
+            print("SHAP Values  | Explaining via TreeExplainer... ")
+            # Create explainer
+            explainer = shap.TreeExplainer(model_tuned.model)
+
+            # Get SHAP values
+            shap_values = explainer.shap_values(X_test)
+
+            # Get expected shap value for reference
+            expected_values = explainer.expected_value
+        
+        elif model_name == "Logistic_Regression":
+            print("SHAP Values  | Explaining via LinearExplainer... ")
+            # Create explainer
+            explainer = shap.LinearExplainer(model_tuned, X_train)
+
+            # Get SHAP values
+            shap_values = explainer.shap_values(X_test)
+
+            # Get expected shap value for reference
+            expected_values = explainer.expected_value            
+
+
+        # Store shap values
+        n_samples, n_features, n_classes = shap_values.shape
+
+        ids = np.repeat(X_test.index, n_features * n_classes)
+        features = np.tile(np.repeat(X_test.columns, n_classes), n_samples)
+        classes = np.tile(np.arange(1, n_classes + 1), n_samples * n_features)
+
+        shap_info_df = pd.DataFrame({
+            id_variable: ids,
+            "feature": features,
+            target_variable: classes,
+            "shap_value": shap_values.reshape(-1),
+            "fold": outer_fold_idx
+        })
+        shap_info_list.append(shap_info_df)
+
+        # Store shap expected values
+        expected_values_folds.append({
+            "fold": outer_fold_idx,
+            **{
+                f"class_{i+1}": float(ev)
+                for i, ev in enumerate(expected_values)
+            }
+        })
+
+    # =========================================================
+    # SAVE RESULTS
+    # =========================================================
+    print("\n" + "="*80)
+    print(" PROCESSING RESULTS & SAVING ".center(80, "="))
+    print("="*80)
+
+    # Concatenate fold results
+    all_pred_info_df = pd.concat(pred_info_list, ignore_index=True)
+    all_shap_info_df = pd.concat(shap_info_list, ignore_index=True)
+    expected_shap_values_df = pd.DataFrame(expected_values_folds)
+
+    # Create output folder for SHAP local
+    output_custom_dir = os.path.join(
+        output_dir,
+        f"SHAP_local",
+        f"{model_name}"
+    )
+    os.makedirs(output_custom_dir, exist_ok=True)
+
+    print(f" -> Output directory: {output_custom_dir}")
+    print(" -> Exporting CSVs... ", end="", flush=True)
+
+    all_pred_info_df.to_csv(
+        os.path.join(output_custom_dir, f"{model_name}_pred_info.csv"),
+        index=False
+    )
+    all_shap_info_df.to_csv(
+        os.path.join(output_custom_dir, f"{model_name}_shap_info.csv"),
+        index=False
+    )
+    expected_shap_values_df.to_csv(
+        os.path.join(output_custom_dir, f"{model_name}_expected_shap_values.csv"),
+        index=False
+    )
+
+    print("\n" + "="*80)
+    print(" PROCESS COMPLETED SUCCESSFULLY ".center(80, " "))
+    print("="*80 + "\n")
+
+    return all_pred_info_df, all_shap_info_df, expected_shap_values_df    
+
+
+def plot_shap_waterfall(
+        config,
+        pred_info_df,
+        expected_value_df,
+        shap_values_df,
+        id_sample,
+        model_name,
+        num_features_display=10,
+        figsize=[10,8]):
+    """
+    This method displays a SHAP waterfall plot to explain a specific sample identified
+    by id_sample input parameter.
+    
+    Parameters
+    ----------
+    config : object
+        Configuration object containing project parameters. Must include:
+        - DATASET_PATH : str or Path
+            Path to input dataset CSV file
+        - ID_VARIABLE : str 
+            Unique identifier column name 
+        - TARGET_VARIABLE : str
+            Target variable column name
+        - TARGET_LABEL_MAP: dict
+            Dictionary mapping original encoded labels to their readable names.
+    
+    pred_info_df : pandas.DataFrame
+        Dataframe containing out-of-fold predictions information. Must include:
+        - id_variable: Sample identifier value
+        - target_variable: Actual class value
+        - target_variable_pred: Predicted class value
+        - fold: Fold where the sample was evaluated
+
+    expected_value_df : pandas.DataFrame
+        Dataframe containing the expected SHAP value per class in each fold.
+        - id_variable: Sample identifier value
+        - feature: Name of the feature
+        - target_variable: Class
+        - shap_value: SHAP value for this feature and class
+        - fold: Fold where the sample was evaluated
+
+    shap_values_df: pandas.DataFrame
+        Dataframe containinr out-of-fold shap values. Must include:
+
+    id_sample: int
+        ID value to get sample information using id_variable column in dataframes.
+    
+    model_name : str
+        The name of the algorithm being explained with SHAP.
+        This controls conditional logic for SHAP explainers and determines file naming.
+
+    num_features_display : int [optional, default=10]
+        Maximum number of features displayed in the Waterfall plot.
+    
+    figsize: list [optional, default=[10, 18]]
+        Width and height values of the graph.
+
+    Returns
+    -------
+    None
+        Displays the SHAP local waterfall plot.
+    """    
+    # =========================================================
+    # LOAD CONFIGURATION VARIABLES
+    # =========================================================
+    # Path and folders 
+    dataset_path = config.DATASET_PATH
+
+    # Unique identifier (CC) and target variables 
+    id_variable = config.ID_VARIABLE
+    target_variable = config.TARGET_VARIABLE
+
+    # Mapping from encoded labels to readable names
+    target_label_map = config.TARGET_LABEL_MAP
+
+    # =========================================================
+    # LOAD DATASET
+    # =========================================================
+    dataset_df = pd.read_csv(dataset_path)
+
+    # =========================================================
+    # GET FEATURE DATA 
+    # =========================================================
+
+    # Filter dataframe for id_sample
+    features_values_df = dataset_df[
+        dataset_df[id_variable] == id_sample
+    ].copy()
+    features_values_df = features_values_df.drop(
+        columns=[id_variable, target_variable]
+    )
+    # Convert to 1D-Array
+    feature_values = features_values_df.iloc[0].values
+
+    # Get feature names to keep features order
+    feature_names = features_values_df.columns
+
+    # =========================================================
+    # EXTRACT PREDICTION INFORMATION
+    # ========================================================= 
+
+    # Get actual class
+    actual_class = pred_info_df.loc[
+        pred_info_df[id_variable] == id_sample,
+        f"{target_variable}"
+    ].iloc[0]
+
+    # Get predicted class
+    pred_class = pred_info_df.loc[
+        pred_info_df[id_variable] == id_sample,
+        f"{target_variable}_pred"
+    ].iloc[0]
+
+    # Get fold of the class to extract expected value
+    fold_idx = pred_info_df.loc[
+        pred_info_df[id_variable] == id_sample,
+        "fold"
+    ].iloc[0]
+
+    # ==========================================================
+    # EXTRACT EXPECTED VALUE FOR PREDICTED CLASS (SHAP REFERENCE)
+    # ==========================================================
+    expected_value = expected_value_df.loc[
+        expected_value_df["fold"] == fold_idx,
+        f"class_{pred_class}"
+    ].iloc[0]
+
+    # ==========================================================
+    # GET SHAP VALUES FOR PREDICTED CLASS
+    # ==========================================================    
+    sample_shap_values_df = shap_values_df[
+        (shap_values_df[id_variable] == id_sample) &
+        (shap_values_df[target_variable] == pred_class)
+    ]
+
+    # Order features according to feature names
+    sample_shap_values_df["feature"] = pd.Categorical(
+        sample_shap_values_df["feature"],
+        categories=feature_names,
+    ordered=True
+    )
+    sample_shap_values_df = sample_shap_values_df.sort_values("feature")
+
+    # Get values as 1D array
+    shap_values = sample_shap_values_df["shap_value"].values
+
+    # ==========================================================
+    # WATERFALL PLOT
+    # ==========================================================    
+
+    # Create explainer object
+    exp = shap.Explanation(
+        values=shap_values,
+        base_values=expected_value,
+        data=feature_values,
+        feature_names=feature_names
+    )
+
+    shap.plots.waterfall(
+        exp,
+        max_display=num_features_display,
+        show=False
+    )
+
+    # Custom figsize with matplotlib
+    fig = plt.gcf()  
+    fig.set_size_inches(figsize[0], figsize[1]) 
+
+    # Get readable names for classses
+    actual_class_label = target_label_map[actual_class]
+    pred_class_label = target_label_map[pred_class]
+
+    # Main title with Model Name
+    fig.suptitle(
+        f"{model_name.upper()}",
+        fontsize=16,
+        color="midnightblue", 
+        weight="bold",
+        x=0.05, 
+        y=1,
+        ha="left"
+    )
+    # Sample information
+    fig.text(
+        x=0.05,        
+        y=0.95,        
+        s=f"Complejo residencial {id_sample}, evaluado en fold  {fold_idx}",
+        fontsize=12,
+        color="midnightblue",
+        fontweight="bold",
+        ha="left"
+    )
+    # Classification information
+    fig.text(
+        x=0.05, 
+        y=0.9, 
+        s=f"Clase real: {actual_class_label}   |   Clase predicha: {pred_class_label}",
+        fontsize=14,
+        color="darkslategray",
+        fontweight="bold",
+        ha="left", 
+    )
+
+    # Margins set to allow space for text
+    plt.grid(axis="x", linestyle="--", alpha=0.5, zorder=0)
+    
+    # Adjust top margin to avoid the text enter in the graph
+    plt.subplots_adjust(top=0.82)
     plt.show()

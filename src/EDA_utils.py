@@ -159,6 +159,128 @@ def plot_fix_map(df, title, figsize=(8,8)):
     plt.show() 
 
 
+def plot_individual_sample_map(config, map_df, id_sample, half_side=150, figsize=(14, 7)):
+    """
+    Plots a dual-panel map visualization for a specific residential complex sample.
+
+    This method generates a side-by-side comparison of the residential complex indicated 
+    by `id_sample`. The left panel displays a satellite view (Esri World Imagery) and 
+    the right panel displays a street map view (OpenStreetMap), both synchronized 
+    with the same spatial extent and center.
+
+    The "EPSG:25830" coordinate system from GeoPandas is used, which georeferences 
+    the ETRS89 / UTM zone 30N system. The coordinates used are:
+    - Latitude: Easting coordinates (x-axis).
+    - Longitude: Northing coordinates (y-axis).
+
+    Parameters
+    ----------
+    config : object
+        Configuration object containing project-level parameters. Must include:
+        - ID_VARIABLE : str
+            Column name of the unique identifier.
+        - TARGET_VARIABLE : str
+            Column name of the target variable (enclosure/URB classification).
+        - TARGET_LABEL_MAP : dict
+            Dictionary mapping encoded target values to human-readable names.
+    map_df : pandas.DataFrame 
+        Dataframe containing the residential complexes. Must include the columns 
+        specified in `config.ID_VARIABLE`, `config.TARGET_VARIABLE`, as well as 
+        'MUN', 'LAT', and 'LON'.
+    id_sample : int or str
+        The unique identifier of the specific residential complex sample to plot.
+    half_side : int [optional, default 150]
+        The distance (in meters) from the center of the sample to the edge of the 
+        bounding box, defining the zoom level of the bounding box.
+    figsize : tuple of int [optional, default (14, 7)]
+        The width and height of the figure in inches. Recommended ratio is 2:1 
+        for side-by-side subplots.
+
+    Returns
+    -------
+    None
+        Displays the dual-panel map visualization using matplotlib.pyplot.show().
+    """
+    # =========================================================
+    # LOAD CONFIGURATION VARIABLES
+    # =========================================================
+    id_variable = config.ID_VARIABLE
+    target_variable = config.TARGET_VARIABLE
+    target_label_map = config.TARGET_LABEL_MAP
+
+    # =========================================================
+    # Select the sample to plot in the map
+    # =========================================================
+    sample_df = map_df[map_df[id_variable] == id_sample]
+
+    # Check if target_variable, MUN, LAT and LON columns exist in the dataframe
+    for col in [target_variable, "MUN", "LAT", "LON"]:
+        assert col in sample_df.columns, f"Error: '{col}' column is missing."
+    
+    # Extract target variable value and MUN
+    target_value = sample_df.loc[sample_df[id_variable] == id_sample, f"{target_variable}"].iloc[0]
+    target_label = target_label_map[target_value]
+    mun = sample_df.loc[sample_df[id_variable] == id_sample, "MUN"].iloc[0]
+
+    # Convert dataframe into a geospatial object
+    gdf = gpd.GeoDataFrame(
+        sample_df,
+        geometry=gpd.points_from_xy(sample_df["LAT"], sample_df["LON"]),
+        crs="EPSG:25830"
+    )
+    
+    # Conversion of CRS coordinates to Web Mercator (required for display on maps)
+    gdf = gdf.to_crs(epsg=3857)
+
+    # =========================================================
+    # CREATE FIGURE WITH SIDE-BY-SIDE SUBPLOTS
+    # =========================================================
+    # Share axes to apply same zoom to both maps
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=figsize, sharex=True, sharey=True)
+    
+    # Plot in both maps
+    gdf.plot(ax=ax1, marker='x', color='red', edgecolor='white', markersize=60, zorder=5)
+    gdf.plot(ax=ax2, marker='x', color='red', edgecolor='white', markersize=60, zorder=5)
+    
+    # =========================================================
+    # ADJUST ZOOM 
+    # =========================================================
+    xmin, ymin, xmax, ymax = gdf.total_bounds
+    cx = (xmin + xmax) / 2
+    cy = (ymin + ymax) / 2
+    ax1.set_xlim(cx - half_side, cx + half_side)
+    ax1.set_ylim(cy - half_side, cy + half_side)
+
+    # =========================================================
+    # BASEMAPS
+    # =========================================================
+    # Satelite view
+    ctx.add_basemap(ax1, source=ctx.providers.Esri.WorldImagery)
+    ax1.set_title("Vista Satélite", fontsize=14, color="dimgray", fontweight="bold", pad=8)
+    ax1.set_axis_off() 
+
+    # Street Map View
+    ctx.add_basemap(ax2, source=ctx.providers.OpenStreetMap.Mapnik)
+    ax2.set_title("Vista Street Map", fontsize=14, color="dimgray", fontweight="bold", pad=8)
+    ax2.set_axis_off() 
+
+    # =========================================================
+    # GLOBAL TITLE & LAYOUT TUNING
+    # =========================================================
+    municipality_name = mun.replace('_', ' ').upper()
+    
+    fig.suptitle(
+        f"Complejo residencial ''{target_label}'' ({municipality_name})",
+        fontsize=14,
+        fontweight="bold",
+        y=0.95 
+    )
+
+    # Show image
+    fig.subplots_adjust(top=0.9)
+    plt.show()
+
+
 def categorical_bivariate_analysis(
         var_df,
         var_dep,
