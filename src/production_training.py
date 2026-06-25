@@ -127,7 +127,7 @@ def train_final_model(config, model, param_grid, model_name, gridsearch_metric="
     print("TRAIN MODEL FOR PRODUCTION ON ALL AVAILABLE DATA")
     print("=" * 70)
     print(f"Model Name      : {model_name}")
-    print(f"CV Folds       : {number_of_folds}")
+    print(f"CV Folds        : {number_of_folds}")
     print("\nHyperparameter Grid:")
     for param_name, param_values in param_grid.items():
         print(f"{param_name:<25}: {param_values}")
