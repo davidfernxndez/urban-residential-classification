@@ -134,7 +134,7 @@ def load_lr_coefs(config, model_path):
     return LR_coef_df, LR_odds_df
 
 
-def plot_lr_feature_importance(LR_coef_df, criterion = "mean"):
+def plot_lr_feature_importance(LR_coef_df, criterion = "mean", figsize=[14, 7]):
     """
     Plot a horizontal bar chart of logistic regression coefficients
     order by feature importance according to specified criterion.
@@ -144,8 +144,12 @@ def plot_lr_feature_importance(LR_coef_df, criterion = "mean"):
     LR_coef_df : pandas.DataFrame
         DataFrame containing logistic regression coefficients.
         Rows correspond to classes and columns correspond to features.
+    
     criterion: string [optional, default="mean"]
         Select criterion to get feature importance. Could be "mean" or "max"
+    
+    figsize: list [optional, default=[14, 7]]
+        Width and height values of the graph.
     Returns
     -------
     None
@@ -162,7 +166,7 @@ def plot_lr_feature_importance(LR_coef_df, criterion = "mean"):
         return print("Input parameter criterion is not available.")
       
     # Horizontal bar plot
-    plt.figure(figsize=(14, 7))
+    plt.figure(figsize=(figsize[0], figsize[1]))
     sns.barplot(
         x=feature_importance.values, 
         y=feature_importance.index, 
@@ -170,10 +174,26 @@ def plot_lr_feature_importance(LR_coef_df, criterion = "mean"):
         edgecolor='black'
     )
 
-    # Title and labels
-    plt.title('Ranking global de Importancia de Variables\n en Regresión Logística Multinomial', fontsize=14, pad=15)
-    plt.xlabel(r'Valor Absoluto Medio del Coeficiente ($|\beta|$)', fontsize=12)
-    plt.ylabel('Variables Predictoras', fontsize=12)
+    # Custom title and axis
+    plt.suptitle(
+        "LOGISTIC REGRESSION",
+        fontsize=16,
+        color="midnightblue", 
+        weight="bold",
+        x=0.15, 
+        y=1,
+        ha="left"
+    )
+    plt.title(
+        r'Importancia de variables basada en el valor medio absoluto del coeficiente $\beta$',
+        fontsize=14,
+        pad=15,
+        weight="bold",
+        ha="left",
+        x=0
+    )
+    plt.xlabel(r'mean($|\beta|$)', fontsize=12, weight="bold")
+    plt.ylabel('Variables', fontsize=12, weight="bold")
 
     # Grid
     plt.grid(axis='x', linestyle='--', alpha=0.7)
@@ -200,14 +220,15 @@ def plot_lr_feature_importance(LR_coef_df, criterion = "mean"):
         " • PBL: Entrada por bloque\n"
         " • COM: Entrada común\n"
         " • COMS: Varias entradas comunes\n\n"
-        "Uso de la Vía pública:\n"
+        "Uso de la vía pública:\n"
         " • PPU: Dominio/uso público\n"
         " • PRE: Dominio/uso privado restringido.\n"
         " • PPR: Dominio/uso privado\n\n"
-        "Seguridad y Vigilancia:\n"
+        "Seguridad y vigilancia:\n"
         " • GSE: Guardia       • CSE: Cámaras\n"
         " • BSE: Barrera       • ASE: Alarma"
     )
+    
     plt.text(
         x=1.1, y=0.5, 
         s=leyenda_texto, 
@@ -224,7 +245,7 @@ def plot_lr_feature_importance(LR_coef_df, criterion = "mean"):
     )
 
 
-    plt.subplots_adjust(left=0.15, right=0.55, top=0.90, bottom=0.10)
+    plt.subplots_adjust(left=0.15, right=0.55, top=0.90)
     plt.show()
 
 
@@ -336,7 +357,7 @@ def plot_lr_class_coefs(LR_coef_df, class_label):
     # =========================
     # BAR PLOT FIGURE
     # =========================
-    _, ax = plt.subplots(figsize=(10, 8))
+    fig, ax = plt.subplots(figsize=(10, 8))
 
     ax.barh(
         y_positions,
@@ -384,14 +405,24 @@ def plot_lr_class_coefs(LR_coef_df, class_label):
     # =========================
     # TITLE AND STYLING
     # =========================
+    ax_pos = ax.get_position()
+    fig.suptitle(
+        "LOGISTIC REGRESSION",
+        fontsize=16,
+        color="midnightblue", 
+        weight="bold",
+        x=ax_pos.x0+0.06, 
+        ha="left"
+    )
     ax.set_title(
-        r"Influencia de las variables en el grado de cerramiento '{}'".format(class_label),
+        "Influencia de las variables en el grado de cerramiento ''{}''".format(class_label),
         fontsize=14,
         fontweight="bold",
-        pad=20
+        pad=20,
+        loc="left"
     )
 
-    ax.set_xlabel(r"Coeficiente $\beta$", fontsize=12)
+    ax.set_xlabel(r"Coeficiente $\beta$", fontsize=12, weight="bold")
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
     plt.tight_layout()
@@ -402,7 +433,7 @@ def plot_lr_class_coefs(LR_coef_df, class_label):
 # DECISION TREE
 # ==============================================================================
 
-def plot_tree_feature_importance(config, model_path):
+def plot_tree_feature_importance(config, model_path, figsize=[14, 7]):
     """
     Plot a horizontal bar chart of decision tree feature importance.
 
@@ -418,6 +449,9 @@ def plot_tree_feature_importance(config, model_path):
         Path to the serialized model artifact (joblib .pkl file). This file 
         is expected to contain a dictionary with the trained "model", the 
         "label_encoder", and the model "name".
+    
+    figsize: list [optional, default=[14,7]]
+        Width and height values of the graph.
     Returns
     -------
     None
@@ -463,18 +497,35 @@ def plot_tree_feature_importance(config, model_path):
     sort_index = np.argsort(feature_importance)[::-1]
 
     # Horizontal bar plot
-    plt.figure(figsize=(14, 7))
+    plt.figure(figsize=(figsize[0], figsize[1]))
     sns.barplot(
         x=feature_importance[sort_index], 
         y=feature_names[sort_index], 
         palette="Blues_r",  
         edgecolor='black'
     )
+    # Custom title and axis
+    plt.suptitle(
+        "DECISION TREE",
+        fontsize=16,
+        color="midnightblue", 
+        weight="bold",
+        x=0.15, 
+        y=1,
+        ha="left"
+    )
+    plt.title(
+        'Importancia de variables basada en la reducción de impureza',
+        fontsize=14,
+        pad=15,
+        weight="bold",
+        ha="left",
+        x=0
+    )
 
     # Title and labels
-    plt.title('Ranking de Importancia de variables en Arbol de Decisión', fontsize=14, pad=15)
-    plt.xlabel('Feature Importance (normalized)', fontsize=12)
-    plt.ylabel('Variables Predictoras', fontsize=12)
+    plt.xlabel('Feature Importance (normalized)', fontsize=12, weight="bold")
+    plt.ylabel('Variables', fontsize=12, weight="bold")
 
     # Grid
     plt.grid(axis='x', linestyle='--', alpha=0.7)
@@ -501,11 +552,11 @@ def plot_tree_feature_importance(config, model_path):
         " • PBL: Entrada por bloque\n"
         " • COM: Entrada común\n"
         " • COMS: Varias entradas comunes\n\n"
-        "Uso de la Vía pública:\n"
+        "Uso de la vía pública:\n"
         " • PPU: Dominio/uso público\n"
         " • PRE: Dominio/uso privado restringido.\n"
         " • PPR: Dominio/uso privado\n\n"
-        "Seguridad y Vigilancia:\n"
+        "Seguridad y vigilancia:\n"
         " • GSE: Guardia       • CSE: Cámaras\n"
         " • BSE: Barrera       • ASE: Alarma"
     )
@@ -975,7 +1026,7 @@ def get_shap_tree(config, model_path):
     return shap_values
 
 
-def plot_shap_global_feature_importance(config, shap_values, model_name, num_features_display=10, figsize=[10,8]):
+def plot_shap_global_feature_importance(config, shap_values, model_name, num_features_display=10, figsize=[10, 8]):
     """
     This function computes the global feature importance by averaging
     the absolute SHAP values across all samples and classes, and
@@ -1075,7 +1126,6 @@ def plot_shap_global_feature_importance(config, shap_values, model_name, num_fea
         y=0.95,        
         s="Importancia global de variables con SHAP",
         fontsize=14,
-        color="midnightblue",
         fontweight="bold",
         ha="left"
     )
@@ -1098,7 +1148,7 @@ def plot_shap_global_feature_importance(config, shap_values, model_name, num_fea
     plt.show()
 
 
-def plot_shap_heatmap(config, shap_values, model_name, figsize=[10,8]):
+def plot_shap_heatmap(config, shap_values, model_name, figsize=[10, 8]):
     """
     This function computes the global feature importance per class by averaging
     the absolute SHAP values across all samples and
@@ -1191,7 +1241,6 @@ def plot_shap_heatmap(config, shap_values, model_name, figsize=[10,8]):
         y=0.94,        
         s="Importancia de variables por clase",
         fontsize=14,
-        color="midnightblue",
         fontweight="bold",
         ha="left"
     )
@@ -1361,7 +1410,7 @@ def plot_shap_class_dashboard(config, shap_values, class_label, model_name, num_
 
     # Custom title and axis
     ax1.set_title("Importancia de variables", fontsize=16, fontweight="bold", pad=15)
-    ax1.set_xlabel("Average impact on model output (mean|SHAP value|)", fontsize=14, fontweight="bold", labelpad=10)
+    ax1.set_xlabel("Average impact on model output (mean|SHAP value|)", fontsize=14, fontweight="bold", labelpad=20)
     ax1.grid(axis="x", linestyle="--", alpha=0.5, zorder=0)
 
     # =========================================================
@@ -1376,7 +1425,7 @@ def plot_shap_class_dashboard(config, shap_values, class_label, model_name, num_
     )
 
     # Custom title and axis 
-    ax2.set_title("Dirección y magnitud del impacto (gráfico Beeswarm)", fontsize=16, fontweight="bold", pad=15)
+    ax2.set_title("Distribución de contribuciones (dirección y magnitud)", fontsize=16, fontweight="bold", pad=20)
     ax2.set_xlabel("Impact on model output (SHAP value)", fontsize=14, fontweight="bold", labelpad=10)
     ax2.grid(axis="x", linestyle="--", alpha=0.5, zorder=0)
     
@@ -1412,15 +1461,15 @@ def plot_shap_class_dashboard(config, shap_values, class_label, model_name, num_
     # Graph title
     fig.text(
         x=0.12,        
-        y=0.96,        
-        s=f"Analisis del grado de cerramiento ''{class_label}'' con SHAP",
+        y=0.95,        
+        s=f"Análisis explicativo del grado de cerramiento ''{class_label}'' mediante valores SHAP",
         fontsize=16,
         color="midnightblue",
         fontweight="bold",
         ha="left"
     )
 
-    plt.tight_layout()
+    plt.subplots_adjust(top=0.87)
     plt.show()
 
 
