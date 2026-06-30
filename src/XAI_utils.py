@@ -1810,10 +1810,10 @@ def plot_shap_waterfall(
         shap_values_df,
         id_sample,
         model_name,
-        num_features_display=10,
+        num_features_display=11,
         figsize=[10,8]):
     """
-    This method displays a SHAP waterfall plot to explain a specific sample identified
+    This method displays a SHAP waterfall plot to explain a specific prediction of sample identified
     by id_sample input parameter.
     
     Parameters
@@ -1854,7 +1854,7 @@ def plot_shap_waterfall(
         The name of the algorithm being explained with SHAP.
         This controls conditional logic for SHAP explainers and determines file naming.
 
-    num_features_display : int [optional, default=10]
+    num_features_display : int [optional, default=11]
         Maximum number of features displayed in the Waterfall plot.
     
     figsize: list [optional, default=[10, 18]]
@@ -2011,4 +2011,272 @@ def plot_shap_waterfall(
     
     # Adjust top margin to avoid the text enter in the graph
     plt.subplots_adjust(top=0.82)
+    plt.show()
+
+
+def plot_misclassification_shap_waterfall(
+        config,
+        pred_info_df,
+        expected_value_df,
+        shap_values_df,
+        id_sample,
+        model_name,
+        num_features_display=11,
+        figsize=[10,8]):
+    """
+    This function displays two SHAP waterplot charts to illustrate the misclassification of a sample. Specifically:
+    - The first chart shows the waterfall of the actual class.
+    - The second chart shows the waterfall of the predicted class.
+    
+    Parameters
+    ----------
+    config : object
+        Configuration object containing project parameters. Must include:
+        - DATASET_PATH : str or Path
+            Path to input dataset CSV file
+        - ID_VARIABLE : str 
+            Unique identifier column name 
+        - TARGET_VARIABLE : str
+            Target variable column name
+        - TARGET_LABEL_MAP: dict
+            Dictionary mapping original encoded labels to their readable names.
+    
+    pred_info_df : pandas.DataFrame
+        Dataframe containing out-of-fold predictions information. Must include:
+        - id_variable: Sample identifier value
+        - target_variable: Actual class value
+        - target_variable_pred: Predicted class value
+        - fold: Fold where the sample was evaluated
+
+    expected_value_df : pandas.DataFrame
+        Dataframe containing the expected SHAP value per class in each fold.
+        - id_variable: Sample identifier value
+        - feature: Name of the feature
+        - target_variable: Class
+        - shap_value: SHAP value for this feature and class
+        - fold: Fold where the sample was evaluated
+
+    shap_values_df: pandas.DataFrame
+        Dataframe containinr out-of-fold shap values. Must include:
+
+    id_sample: int
+        ID value to get sample information using id_variable column in dataframes.
+    
+    model_name : str
+        The name of the algorithm being explained with SHAP.
+        This controls conditional logic for SHAP explainers and determines file naming.
+
+    num_features_display : int [optional, default=11]
+        Maximum number of features displayed in the Waterfall plot.
+    
+    figsize: list [optional, default=[10, 8]]
+        Width and height values of the graph.
+
+    Returns
+    -------
+    None
+        Displays the SHAP local waterfall plot.
+    """    
+    # =========================================================
+    # LOAD CONFIGURATION VARIABLES
+    # =========================================================
+    # Path and folders 
+    dataset_path = config.DATASET_PATH
+
+    # Unique identifier (CC) and target variables 
+    id_variable = config.ID_VARIABLE
+    target_variable = config.TARGET_VARIABLE
+
+    # Mapping from encoded labels to readable names
+    target_label_map = config.TARGET_LABEL_MAP
+
+    # =========================================================
+    # LOAD DATASET
+    # =========================================================
+    dataset_df = pd.read_csv(dataset_path)
+
+    # =========================================================
+    # GET FEATURE DATA 
+    # =========================================================
+
+    # Filter dataframe for id_sample
+    features_values_df = dataset_df[
+        dataset_df[id_variable] == id_sample
+    ].copy()
+    features_values_df = features_values_df.drop(
+        columns=[id_variable, target_variable]
+    )
+    # Convert to 1D-Array
+    feature_values = features_values_df.iloc[0].values
+
+    # Get feature names to keep features order
+    feature_names = features_values_df.columns
+
+    # =========================================================
+    # EXTRACT PREDICTION INFORMATION
+    # ========================================================= 
+
+    # Get actual class
+    actual_class = pred_info_df.loc[
+        pred_info_df[id_variable] == id_sample,
+        f"{target_variable}"
+    ].iloc[0]
+
+    # Get predicted class
+    pred_class = pred_info_df.loc[
+        pred_info_df[id_variable] == id_sample,
+        f"{target_variable}_pred"
+    ].iloc[0]
+
+    # Get fold of the class to extract expected value
+    fold_idx = pred_info_df.loc[
+        pred_info_df[id_variable] == id_sample,
+        "fold"
+    ].iloc[0]
+
+    # ==========================================================
+    # EXTRACT EXPECTED VALUE FOR PREDICTED AND
+    # ACTUAL CLASS (SHAP REFERENCE)
+    # ==========================================================
+    expected_pred_value = expected_value_df.loc[
+        expected_value_df["fold"] == fold_idx,
+        f"class_{pred_class}"
+    ].iloc[0]
+
+    expected_actual_value = expected_value_df.loc[
+        expected_value_df["fold"] == fold_idx,
+        f"class_{actual_class}"
+    ].iloc[0]
+
+    # ==========================================================
+    # GET SHAP VALUES FOR PREDICTED AND ACTUAL CLASS
+    # ==========================================================    
+    sample_pred_shap_values_df = shap_values_df[
+        (shap_values_df[id_variable] == id_sample) &
+        (shap_values_df[target_variable] == pred_class)
+    ]
+
+    sample_actual_shap_values_df = shap_values_df[
+        (shap_values_df[id_variable] == id_sample) &
+        (shap_values_df[target_variable] == actual_class)
+    ]
+
+    # Order features according to feature names
+    sample_pred_shap_values_df["feature"] = pd.Categorical(
+        sample_pred_shap_values_df["feature"],
+        categories=feature_names,
+    ordered=True
+    )
+    sample_actual_shap_values_df["feature"] = pd.Categorical(
+       sample_actual_shap_values_df["feature"],
+        categories=feature_names,
+    ordered=True
+    )
+    sample_pred_shap_values_df = sample_pred_shap_values_df.sort_values("feature")
+    sample_actual_shap_values_df = sample_actual_shap_values_df.sort_values("feature")
+
+    # Get values as 1D array
+    shap_pred_values = sample_pred_shap_values_df["shap_value"].values
+    shap_actual_values = sample_actual_shap_values_df["shap_value"].values
+
+    # Create explainer object for predicted and actual class
+    exp_pred = shap.Explanation(
+        values=shap_pred_values,
+        base_values=expected_pred_value,
+        data=feature_values,
+        feature_names=feature_names
+    )
+    exp_actual = shap.Explanation(
+        values=shap_actual_values,
+        base_values=expected_actual_value,
+        data=feature_values,
+        feature_names=feature_names
+    )
+
+    # Get readable names for classses
+    actual_class_label = target_label_map[actual_class]
+    pred_class_label = target_label_map[pred_class]
+
+    # ==========================================================
+    # WATERFALL PLOT (ACTUAL CLASS)
+    # ========================================================== 
+       
+    shap.plots.waterfall(
+        exp_actual,
+        max_display=num_features_display,
+        show=False
+    )
+
+    # Custom figsize with matplotlib
+    fig = plt.gcf()  
+    fig.set_size_inches(figsize[0], figsize[1]) 
+
+    # Main title with Model Name
+    fig.suptitle(
+        f"{model_name.upper()}",
+        fontsize=16,
+        color="midnightblue", 
+        weight="bold",
+        x=0.05, 
+        y=1,
+        ha="left"
+    )
+    # Sample information
+    fig.text(
+        x=0.05,        
+        y=0.93,        
+        s=f"Análisis de la clasificación errónea del complejo residencial {id_sample}, evaluado en fold  {fold_idx}",
+        fontsize=13,
+        color="midnightblue",
+        fontweight="bold",
+        ha="left"
+    )
+    # Classification information
+    fig.text(
+        x=0.05, 
+        y=0.88, 
+        s=f"Waterfall plot de clase real: {actual_class_label}",
+        fontsize=14,
+        color="darkslategray",
+        fontweight="bold",
+        ha="left", 
+    )
+
+    # Margins set to allow space for text
+    plt.grid(axis="x", linestyle="--", alpha=0.5, zorder=0)
+    
+    # Adjust top margin to avoid the text enter in the graph
+    plt.subplots_adjust(top=0.8)
+    plt.show()
+
+    # ==========================================================
+    # WATERFALL PLOT (PREDICTED CLASS)
+    # ========================================================== 
+
+    shap.plots.waterfall(
+        exp_pred,
+        max_display=num_features_display,
+        show=False
+    )
+
+    # Custom figsize with matplotlib
+    fig = plt.gcf()  
+    fig.set_size_inches(figsize[0], figsize[1]) 
+
+    # Classification information
+    fig.text(
+        x=0.05, 
+        y=1, 
+        s=f"Waterfall plot de clase predicha: {pred_class_label}",
+        fontsize=14,
+        color="darkslategray",
+        fontweight="bold",
+        ha="left", 
+    )
+
+    # Margins set to allow space for text
+    plt.grid(axis="x", linestyle="--", alpha=0.5, zorder=0)
+    
+    # Adjust top margin to avoid the text enter in the graph
+    plt.subplots_adjust(top=0.95)
     plt.show()
