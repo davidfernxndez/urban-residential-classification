@@ -13,10 +13,53 @@ the application.
 
 import os
 import pandas as pd
+import joblib
 import streamlit as st
 from pyproj import Transformer
+import shap
 
 from app_src.appConfig import config
+
+@st.cache_resource
+def load_model() -> dict:
+    """
+    Load model artifact from pkl file and extract 
+
+    Parameters
+    --------
+    None
+
+    Returns
+    -------
+    model: sklearn estimator
+        Machine learning estimator that supports sklearn API
+    
+    label_encoder: sklearn.preprocessing LabelEncoder object
+        Encoder used during model training
+    
+    model_name: str
+        Name of the model contained in the pkl artifact
+    
+    explainer: shap.Treeexplainer
+        SHAP explainer object calculates from the model
+    """ 
+    model_path = config.XGBOOST_MODEL_PATH
+    
+    if not os.path.exists(model_path):
+        st.error(f"Model PKL file not found in: {model_path}")
+        return {}
+    
+    # Load artifact
+    artifact = joblib.load(model_path)
+    model = artifact["model"]
+    label_encoder = artifact["label_encoder"]
+    model_name = artifact["name"]
+
+    # Get SHAP explainer object
+    explainer = shap.TreeExplainer(model.model)
+
+    return model, label_encoder, explainer, model_name
+
 
 @st.cache_data
 def load_map_data() -> pd.DataFrame:

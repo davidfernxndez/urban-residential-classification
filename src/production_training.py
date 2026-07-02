@@ -13,7 +13,6 @@ import numpy as np
 
 from sklearn.model_selection import GridSearchCV
 from sklearn.preprocessing import LabelEncoder
-from sklearn.utils.class_weight import compute_sample_weight
 
 
 # ==============================================================================

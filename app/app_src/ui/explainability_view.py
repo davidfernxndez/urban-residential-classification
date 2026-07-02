@@ -182,29 +182,10 @@ def get_shap_waterfall(selected_cc, num_features_display=11, figsize=[9, 5.5]):
     # Custom plot with matplotlib
     fig = plt.gcf()  
     fig.set_size_inches(figsize[0], figsize[1])  
-    """
-    fig.suptitle(
-        "SHAP WATERFALL PLOT",
-        fontsize=14,
-        color="midnightblue", 
-        weight="bold",
-        x=0.05, 
-        ha="left"
-    )
-    # Sample information
-    fig.text(
-        x=0.05,        
-        y=0.9,        
-        s=f"Grado de cerramiento ''{target_label_map[pred_class]}''",
-        fontsize=12,
-        color="black",
-        fontweight="bold",
-        ha="left"
-    )
-    """
+
     # Add grid and adjust marginds
     plt.grid(axis="x", linestyle="--", alpha=0.5, zorder=0)
-    #plt.subplots_adjust(top=0.85)
+  
     plt.tight_layout()
 
     return fig, pred_class_label
@@ -720,7 +701,7 @@ def render_explainability_interface():
                     with st.container(border=True):
                         st.pyplot(fig_shap, clear_figure=True, bbox_inches="tight")
                     
-                    st.markdown( "<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
+                    st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
 
                     # Display explainability text
                     explainability_text = generate_shap_explication(selected_cc=selected_cc)

@@ -9,6 +9,7 @@ if current_dir not in sys.path:
 
 # Importar la vista del mapa que acabamos de escribir
 from app_src.ui.explainability_view import render_explainability_interface
+from app_src.ui.predict_view import render_predict_interface
 
 # 1. Configuración de la página (Debe ser la primera directiva de Streamlit)
 st.set_page_config(
@@ -39,5 +40,4 @@ with tab1:
 
 # 5. Contenido temporal para la pestaña 2
 with tab2:
-    st.header("Simulador de Predicciones en Tiempo Real")
-    st.warning("Mensaje temporal: Aquí se configurarán las características de la urbanización ficticia para XGBoost.")
+    render_predict_interface()

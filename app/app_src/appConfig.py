@@ -45,11 +45,11 @@ class AppConfig:
     # STYLE
     ######################    
     CLASS_STYLES: dict = field(default_factory=lambda: {
-        1: {"label": "Protegido", "color": "red"},
-        2: {"label": "Controlado", "color": "orange"},
-        3: {"label": "Autoaislado", "color": "purple"},
-        4: {"label": "Individualista", "color": "blue"},
-        5: {"label": "Simbólico", "color": "green"}
+        1: {"label": "Protegido", "color": "red", "hex_code":"#ec5b5b"},
+        2: {"label": "Controlado", "color": "orange", "hex_code":"#ef6c00"},
+        3: {"label": "Autoaislado", "color": "purple", "hex_code": "#8e44ad"},
+        4: {"label": "Individualista", "color": "blue", "hex_code": "#2980b9"},
+        5: {"label": "Simbólico", "color": "green", "hex_code": "#2e7d32"}
     })    
     FEATURE_DESCRIPTION: dict = field(default_factory=lambda: {
         "CSS": "calles sin salida",
