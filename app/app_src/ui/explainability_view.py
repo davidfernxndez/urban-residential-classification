@@ -556,11 +556,17 @@ def render_explainability_interface():
     # =========================================================
     # UI Headers and Descriptions
     # ========================================================= 
-    st.subheader("Cartografía de complejos residenciales de acuerdo a su grado de cerramiento")
-    st.markdown("""
-    Desplázate por el mapa y sitúa el cursor sobre los complejos residenciales para ver su información. 
-    Haz **clic sobre un marcador** para cargar su análisis de explicabilidad local mediante SHAP.
-    """)
+    st.subheader("Predicción y explicabilidad del censo de complejos residenciales (área Metropolitana de Granada)")
+    st.markdown(
+        """
+        <p style='color: #475569; font-size: 1.12rem; line-height: 1.5; margin-bottom: 15px;'>
+            💡 Desplázese sobre el mapa y sitúe el cursor sobre los complejos residenciales para ver su información.
+            <span style='background-color: #e6effa; color: #1e3d59; padding: 2px 6px; border-radius: 4px; font-weight: bold;'>Haz clic sobre el marcador</span> 
+            para desplegar el análisis de explicabilidad mediante SHAP en el panel inferior.
+        </p>
+        """, 
+        unsafe_allow_html=True
+    )
 
     # ==========================
     # FOLIUM MAP CONFIGURATION

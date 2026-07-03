@@ -55,6 +55,7 @@ def custom_instance():
     # =========================================================================
     # CREATE TABS FOR EACH BLOCK OF VARAIBLES
     # =========================================================================
+
     with st.form(key="prediction_form_id"):
         tab_est, tab_dist, tab_cerr, tab_acc, tab_via, tab_seg = st.tabs([
             "🧱 Aspectos estructurales", 
@@ -171,7 +172,7 @@ def custom_instance():
 
         # Button to register the state of the form and request a prediction
         submit_button = st.form_submit_button(
-            label="🔮 PREDECIR GRADO DE CERRAMIENTO", 
+            label="PREDECIR GRADO DE CERRAMIENTO", 
             use_container_width=True,
             type="primary"
         )
@@ -415,11 +416,18 @@ def render_predict_interface():
     # =========================================================
     # UI Headers and Descriptions
     # ========================================================= 
-    st.title("Preditor de Grados de Cerramiento")
-    st.markdown("""
-    Configure las características morfológicas, espaciales y de seguridad del complejo residencial 
-    utilizando los bloques temáticos. Una vez definido, pulse el botón **Predecir** al final de la página.
-    """)
+    st.subheader("Simulación predictiva de nuevos desarrollos urbanísticos")
+    st.markdown(
+        """
+        <p style='color: #475569; font-size: 1.12rem; line-height: 1.5; margin-bottom: 15px;'>
+            💡 Configure las características morfológicas de su complejo residencial utilizando el formulario disponible.
+            Una vez definido, pulse el botón
+            <span style='background-color: #ff8c00; color: #ffffff; padding: 2px 6px; border-radius: 4px; font-weight: bold;'>PREDECIR</span> 
+            para obtener automáticamente el <b>grado de cerramiento</b> estimado por el modelo y su análisis de explicabilidad mediante SHAP.
+        </p>
+        """, 
+        unsafe_allow_html=True
+    )
 
     # Instantiate button form to allow residential complex customization
     instance_df = custom_instance()

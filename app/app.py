@@ -1,8 +1,24 @@
+"""
+XAI-URBAN Streamlit Application Entry Point.
+
+This file defines the main interface of the XAI-URBAN platform, an explainable AI system
+for the classification of urban residential typologies based on morphological features.
+
+The application is structured into three main views:
+- Context: description of the problem, dataset, and methodological framework.
+- Explainability: interactive geospatial exploration with SHAP-based model interpretation.
+- Predictor: simulation tool for predicting new residential developments.
+"""
+
+# ==============================================================================
+# IMPORTS
+# ==============================================================================
+
 import os
 import sys
 import streamlit as st
 
-# Asegurar que Python pueda encontrar el módulo 'src' dentro de la carpeta 'app'
+# Ensure that functions can be read from app_src
 current_dir = os.path.dirname(os.path.abspath(__file__))
 if current_dir not in sys.path:
     sys.path.append(current_dir)
@@ -10,39 +26,94 @@ if current_dir not in sys.path:
 from app_src.ui.explainability_view import render_explainability_interface
 from app_src.ui.predict_view import render_predict_interface
 from app_src.ui.context_view import render_context_view
+from app_src.appConfig import config
 
-
-# 1. Configuración de la página (Debe ser la primera directiva de Streamlit)
+# Page configuration
 st.set_page_config(
-    page_title="TFM - Clasificación de Urbanizaciones",
-    page_icon="🗺️",
+    page_title="GRANADA_XAI_URBAN",
     layout="wide",
     initial_sidebar_state="expanded"
 )
-st.title("Análisis de la Fragmentación Urbana en Granada")
-st.caption("Plataforma Inteligente para el Estudio del Grado de Cerramiento Residencial mediante Aprendizaje Automático (XGBoost y SHAP)")
+st.markdown("""
+<div style="
+    text-align: left;
+    font-size: 44px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    margin-top: 10px;
+    color: #1f1f1f;
+">
+Inteligencia artificial explicable (XAI) para la clasificación de tipologías urbanas
+</div>
+
+<div style="
+    text-align: left;
+    font-size: 15px;
+    color: #6b6b6b;
+    margin-top: 4px;
+    margin-bottom: 18px;
+">
+Sistema basado en XGBoost + SHAP
+</div>
+""", unsafe_allow_html=True)
+
+# Author and social networks
+st.markdown(f"""
+    <div style="
+        display: flex;
+        justify-content: left;
+        align-items: left;
+        gap: 14px;
+        margin-top: 2px;
+        margin-bottom: -2px;
+        font-size: 14.5px;
+        color: #4a4a4a;
+        letter-spacing: 0.2px;
+    ">
+
+    <span style="font-weight: 600;">👤 {config.NAME}</span>
+    <span style="opacity: 0.6;">•</span>
+    <a href={config.GITHUB_LINK} target="_blank"
+    style="
+        text-decoration: none;
+        color: #4a4a4a;
+        font-weight: 500;
+    ">
+    💻 GitHub
+    </a>
+    <span style="opacity: 0.6;">•</span>
+    <a href={config.LINKEDIN_LINK} target="_blank"
+    style="
+        text-decoration: none;
+        color: #4a4a4a;
+        font-weight: 500;
+    ">
+    🔗 LinkedIn
+    </a>
+
+    </div>
+    """, 
+    unsafe_allow_html=True
+)
 st.divider()
 
 st.markdown("""
     <style>
-        /* Agranda el texto de los botones de las pestañas superiores */
         button[data-baseweb="tab"] p {
-            font-size: 20px !important;  /* Ajusta este valor a tu gusto */
+            font-size: 18px !important; 
             font-weight: bold !important;
         }
-        /* Añade un poco de espacio (padding) para que sean más cómodas de clicar */
         button[data-baseweb="tab"] {
-            padding: 12px 24px !important;
+            padding: 3px 12px !important;
         }
     </style>
 """, unsafe_allow_html=True)
 
-
-# Menú de navegación
+# Navegation Menu
 tab_init, tab_explainability, tab_predict = st.tabs([
-    "🏠 Inicio y Contexto", 
-    "🗺️ Explorador Geográfico", 
-    "🔮 Simulador de Diseño"
+    " CONTEXTO", 
+    "EXPLICABILIDAD", 
+    "PREDICTOR"
 ])
 
 with tab_init:
@@ -51,3 +122,43 @@ with tab_explainability:
     render_explainability_interface()
 with tab_predict:
     render_predict_interface()
+
+# Author and social networks
+st.divider()
+st.markdown(f"""
+    <div style="
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 14px;
+        margin-top: 10px;
+        margin-bottom: -1px;
+        font-size: 40px;
+        color: #4a4a4a;
+        letter-spacing: 0.2px;
+    ">
+
+    <span style="font-weight: 600;">👤 {config.NAME}</span>
+    <span style="opacity: 0.6;">•</span>
+    <a href={config.GITHUB_LINK} target="_blank"
+    style="
+        text-decoration: none;
+        color: #4a4a4a;
+        font-weight: 500;
+    ">
+    💻 GitHub
+    </a>
+    <span style="opacity: 0.6;">•</span>
+    <a href={config.LINKEDIN_LINK} target="_blank"
+    style="
+        text-decoration: none;
+        color: #4a4a4a;
+        font-weight: 500;
+    ">
+    🔗 LinkedIn
+    </a>
+
+    </div>
+    """, 
+    unsafe_allow_html=True
+)
