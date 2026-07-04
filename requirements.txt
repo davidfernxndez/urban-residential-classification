@@ -17,7 +17,9 @@ fiona==1.9.6
 geopandas==0.14.4
 contextily==1.6.0
 
-# --- Machine Learning ---     
+# --- Machine Learning ---
+scikit-learn==1.4.2
+xgboost==2.0.3     
 shap==0.45.1
 
 # --- Visualization ---
