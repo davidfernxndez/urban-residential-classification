@@ -1,13 +1,15 @@
 # ==============================================================================
-# EXCLUSIVE CONFIGURATION FOR PRODUCTION (STREAMLIT COMMUNITY CLOUD)
+# COMPLETE DEVELOPMENT CONFIGURATION (LOCAL)
 #
-# This file contains only the libraries strictly necessary for the streamlit app to 
-# work. Optimized for a fast and clean deployment.
+# This file contains all the project dependencies, covering both the
+# experimentation phase and the application of Streamlit.
 # ==============================================================================
 
 # --- Core Data Science & Analytics ---
 numpy==1.26.4
 pandas==2.2.2
+scipy==1.17.1
+openpyxl==3.1.2
 joblib==1.5.3
 
 # --- Geospatial ---
@@ -17,13 +19,22 @@ fiona==1.9.6
 geopandas==0.14.4
 contextily==1.6.0
 
-# --- Machine Learning ---     
+# --- Machine Learning---
+scikit-learn==1.4.2
+xgboost==2.0.3
+mlflow==3.0.0        
 shap==0.45.1
 
 # --- Visualization ---
 matplotlib==3.8.4
+seaborn==0.13.2
+dtreeviz==2.3.2
 
 # --- App ---
 streamlit==1.35.0
 folium==0.17.0
 streamlit-folium==0.22.0
+
+# --- Local Project Configuration ---
+# Automatically installs the src/ folder in editable mode
+-e .
