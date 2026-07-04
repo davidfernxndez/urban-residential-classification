@@ -18,10 +18,15 @@ import os
 import sys
 import streamlit as st
 
-# Ensure that functions can be read from app_src
+# Ensure that streamlit cloud service can read from app_src/ folder
 current_dir = os.path.dirname(os.path.abspath(__file__))
 if current_dir not in sys.path:
     sys.path.append(current_dir)
+
+# Ensure that streamlit cloud service can read from src/ folder
+root_dir = os.path.dirname(current_dir)
+if root_dir not in sys.path:
+    sys.path.append(root_dir)
 
 from app_src.ui.explainability_view import render_explainability_interface
 from app_src.ui.predict_view import render_predict_interface
