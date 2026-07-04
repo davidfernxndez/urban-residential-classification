@@ -172,7 +172,7 @@ def custom_instance():
 
         # Button to register the state of the form and request a prediction
         submit_button = st.form_submit_button(
-            label="PREDECIR GRADO DE CERRAMIENTO", 
+            label="PREDECIR", 
             use_container_width=True,
             type="primary"
         )
@@ -420,10 +420,11 @@ def render_predict_interface():
     st.markdown(
         """
         <p style='color: #475569; font-size: 1.12rem; line-height: 1.5; margin-bottom: 15px;'>
-            💡 Configure las características morfológicas de su complejo residencial utilizando el formulario disponible.
-            Una vez definido, pulse el botón
-            <span style='background-color: #ff8c00; color: #ffffff; padding: 2px 6px; border-radius: 4px; font-weight: bold;'>PREDECIR</span> 
-            para obtener automáticamente el <b>grado de cerramiento</b> estimado por el modelo y su análisis de explicabilidad mediante SHAP.
+            💡 Configure las características morfológicas de su complejo residencial mediante el formulario disponible.
+            <br><br>
+            Pulse el botón
+            <span style='background-color: #FF4B4B; color: #ffffff; padding: 2px 6px; border-radius: 4px; font-weight: bold;'>PREDECIR</span> 
+            para obtener el <b>grado de cerramiento</b> estimado por el modelo, junto con su análisis de explicabilidad basado en SHAP
         </p>
         """, 
         unsafe_allow_html=True

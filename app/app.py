@@ -48,12 +48,12 @@ Inteligencia artificial explicable (XAI) para la clasificación de tipologías u
 
 <div style="
     text-align: left;
-    font-size: 15px;
+    font-size: 14px;
     color: #6b6b6b;
     margin-top: 4px;
     margin-bottom: 18px;
 ">
-Sistema basado en XGBoost + SHAP
+Sistema basado en XGBoost y SHAP
 </div>
 """, unsafe_allow_html=True)
 
@@ -72,6 +72,8 @@ st.markdown(f"""
     ">
 
     <span style="font-weight: 600;">👤 {config.NAME}</span>
+
+    
     <span style="opacity: 0.6;">•</span>
     <a href={config.GITHUB_LINK} target="_blank"
     style="

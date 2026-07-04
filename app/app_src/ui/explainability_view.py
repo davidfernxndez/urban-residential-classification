@@ -674,13 +674,54 @@ def render_explainability_interface():
     with col_legend:
         with st.container(border=True):
             st.markdown("<div class='legend-container'>", unsafe_allow_html=True)
-            st.markdown("<p style='font-size: 1.2rem; font-weight: bold; margin-bottom: 20px; color: #1e3d59;'>Grado de cerramiento</p>", unsafe_allow_html=True)
+            st.markdown("""
+                <div style="margin-bottom: 25px;">
+                    <p style="
+                        font-size: 1.4rem;
+                        font-weight: bold;
+                        color: #1e3d59;
+                        margin-top: -10px;
+                        margin-bottom: 0px;
+                    ">
+                        Grado de cerramiento
+                    </p>
+                    <hr style="
+                        border: none;
+                        height: 2px;
+                        background-color: rgba(30, 61, 89, 0.25);
+                        margin-top: 0px;
+                        margin-bottom: 2px;
+                    ">
+                </div>
+                """, 
+                unsafe_allow_html=True
+            )
             hex_colors = {"red": "🔴", "orange": "🟠", "purple": "🟣", "blue": "🔵", "green": "🟢"}
 
             # Legend style
-            for class_key, info in class_styles.items():
+            for _, info in class_styles.items():
+
                 emoji = hex_colors.get(info["color"], "⚪")
-                st.markdown(f"{emoji} **{class_key}**: {info['label']}")
+
+                st.markdown(f"""
+                    <div style="
+                        font-size: 15px;
+                        line-height: 2.2;
+                        margin-bottom: 40px;
+                        text-align: justify;
+                    ">
+                    <span style="font-size: 22px;">{emoji}</span>
+                    <span style="
+                        font-weight: 700;
+                        font-size: 22px;
+                        color: #1f1f1f;
+                    ">
+                        {info['label']}
+                    </span>
+                    </div>
+                    """, 
+                    unsafe_allow_html=True
+                )
 
             st.markdown("</div>", unsafe_allow_html=True)
     
@@ -690,8 +731,11 @@ def render_explainability_interface():
 
     # --- ROW 2: DESCRIPTIVE DATA (LEFT) AND SHAP GRAPH (RIGHT) ---
     if selected_cc:
-        st.session_state["selected_urbanizacion"] = selected_cc
-        st.toast(f"Complejo residencial seleccionado: {selected_cc}", icon="📌")
+        # Show selected CC with toast card
+        if st.session_state.get("last_toasted_cc") != selected_cc:
+            st.toast(f"Complejo residencial seleccionado: {selected_cc}", icon="📌")
+            # Update selected CC
+            st.session_state["last_toasted_cc"] = selected_cc
 
         with st.container(border=True):
             col_data, _, col_graph = st.columns([2, 0.1, 3]) 
@@ -713,6 +757,7 @@ def render_explainability_interface():
                     explainability_text = generate_shap_explication(selected_cc=selected_cc)
                     st.markdown(explainability_text, unsafe_allow_html=True)
     else:
+        st.session_state["last_toasted_cc"] = None
         # Waiting message
         with st.container(border=True):
             st.markdown(
