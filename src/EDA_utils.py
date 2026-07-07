@@ -15,6 +15,7 @@ It also includes a method to display data points in to a fix map.
 # IMPORTS
 # ==============================================================================
 
+import os
 import pandas as pd
 import geopandas as gpd
 import matplotlib.pyplot as plt
@@ -23,143 +24,14 @@ from scipy.stats import chi2_contingency
 import numpy as np
 import seaborn as sns
 import pandas as pd
+from src.config import cfg
 
+# Path to save images in PDF format
+OUTPUT_DIR = cfg.OUTPUT_DIR
 
+ 
 
-def plot_fix_map(df, title, figsize=(8,8)):
-    '''
-    This function represents on a map the residential complexes present in the input dataframe.
-
-    The "EPSG:25830" coordinate system from GeoPandas is used, which georeferences the ETRS89 / UTM zone 30N system. The coordinates used are:
-    - Latitude: East coordinates (x-axis).
-    - Longitude: West coordinates (y-axis).
-
-    Residential complexes are represented with a marker that indicates their level of enclosure (URB classification)
-
-    Parameters
-    ----------
-    df: pandas DataFrame
-        Data frame containing residential complexes. Must include LAT, LON, and URB columns.
-    title: string
-        Map title
-    figsize: tuple [Optional]
-        Size of the map visualization.
-    '''
-    
-    # Check URB, LAT and LON columns exist in the dataframe
-    for col in ["URB", "LAT", "LON"]:
-        assert col in df.columns, f"Error: '{col}' column is missing."
-    
-    # Marker style for each URB classification
-    styles = {
-        "Protegido":      {"color": "red",    "marker": "o"},
-        "Controlado":     {"color": "orange",   "marker": "s"},
-        "Autoaislado":    {"color": "yellow",  "marker": "^"},
-        "Individualista": {"color": "blue", "marker": "D"},
-        "Simbólico":      {"color": "green", "marker": "X"},
-    }
-
-    # Create column with URB label
-    if "URB_label" not in df.columns:
-        mapping = {
-            1: "Protegido",
-            2: "Controlado",
-            3: "Autoaislado",
-            4: "Individualista",
-            5: "Simbólico"
-        }
-        df["URB"] = df["URB"].astype(int)
-        df["URB_label"] = df["URB"].map(mapping)
-
-    # Convert dataframe into a geospatial object
-    gdf = gpd.GeoDataFrame(
-        df,
-        geometry=gpd.points_from_xy(df["LAT"], df["LON"]),
-        crs="EPSG:25830"
-    )
-    
-    # Conversion of CRS coordinates to Web Mercator (required for display on maps)
-    # Converts from CRS units to Web Mercator units
-    gdf = gdf.to_crs(epsg=3857)
-
-    # Crate figure to plot the map
-    _, ax = plt.subplots(figsize=figsize)
-
-    # Plot data according to URB marker
-    for label, style in styles.items():
-
-        subset = gdf[gdf["URB_label"] == label]
-
-        if not subset.empty:
-            subset.plot(
-                ax=ax,
-                color=style["color"],
-                marker=style["marker"],
-                markersize=50,
-                alpha=0.7,
-                label=label,
-                edgecolor="white",
-                linewidth=1.2,
-                zorder=3
-            )
-
-    # =========================================================
-    # ADJUST AUTOMATIC ZOOM
-    # =========================================================
-
-    # Get x and y limits
-    xmin, ymin, xmax, ymax = gdf.total_bounds
-
-    # Calculate center of the map
-    cx = (xmin + xmax) / 2
-    cy = (ymin + ymax) / 2
-
-    # Zoom configuration
-    base_half_side = 150  # baseline
-    dx = xmax - xmin # X max range
-    dy = ymax - ymin # y max range
-    max_span = max(dx, dy)
-
-    # Get number of data points in the dataframe
-    n = len(gdf)
-    
-    if n == 1:
-        # A single residential complex: Zoom 100x100m
-        half_side = base_half_side
-
-    else:
-        # If there is more than one residential complex,
-        #  it is guaranteed that all of them will appear.
-        half_side = max(max_span / 2, base_half_side)
-
-        # Avoid zooming in too wide in a few places
-        if n < 5:
-            half_side = max(half_side, base_half_side * 2)   
-        elif n < 20:
-            half_side = max(half_side, base_half_side * 4)  
-
-    # Apply Zoom
-    ax.set_xlim(cx - half_side, cx + half_side)
-    ax.set_ylim(cy - half_side, cy + half_side)
-
-    # =========================================================
-    # BASEMAP
-    # =========================================================
-    ctx.add_basemap(ax, source=ctx.providers.Esri.WorldImagery)
-    
-    # Título y configuraciones visuales
-    ax.set_title(
-        title,
-        fontsize=14,
-        fontweight="bold"
-    )
-    ax.legend(title="Grado de cerramiento:")
-    ax.set_axis_off() 
-    plt.tight_layout()
-    plt.show() 
-
-
-def plot_individual_sample_map(config, map_df, id_sample, half_side=150, figsize=(14, 7)):
+def plot_individual_sample_map(config, map_df, id_sample, half_side=150, figsize=(14, 7), save_image=False):
     """
     Plots a dual-panel map visualization for a specific residential complex sample.
 
@@ -195,6 +67,8 @@ def plot_individual_sample_map(config, map_df, id_sample, half_side=150, figsize
     figsize : tuple of int [optional, default (14, 7)]
         The width and height of the figure in inches. Recommended ratio is 2:1 
         for side-by-side subplots.
+    save_image: bool [optional, default=False]
+        Indicates if figure is saved in pdf format
 
     Returns
     -------
@@ -239,8 +113,8 @@ def plot_individual_sample_map(config, map_df, id_sample, half_side=150, figsize
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=figsize, sharex=True, sharey=True)
     
     # Plot in both maps
-    gdf.plot(ax=ax1, marker='x', color='red', edgecolor='white', markersize=60, zorder=5)
-    gdf.plot(ax=ax2, marker='x', color='red', edgecolor='white', markersize=60, zorder=5)
+    gdf.plot(ax=ax1, marker='v', color='red', edgecolor='white', markersize=150, zorder=5)
+    gdf.plot(ax=ax2, marker='v', color='red', edgecolor='white', markersize=150, zorder=5)
     
     # =========================================================
     # ADJUST ZOOM 
@@ -255,12 +129,12 @@ def plot_individual_sample_map(config, map_df, id_sample, half_side=150, figsize
     # BASEMAPS
     # =========================================================
     # Satelite view
-    ctx.add_basemap(ax1, source=ctx.providers.Esri.WorldImagery)
+    ctx.add_basemap(ax1, source=ctx.providers.Esri.WorldImagery, attribution="")
     ax1.set_title("Vista Satélite", fontsize=14, color="dimgray", fontweight="bold", pad=8)
     ax1.set_axis_off() 
 
     # Street Map View
-    ctx.add_basemap(ax2, source=ctx.providers.OpenStreetMap.Mapnik)
+    ctx.add_basemap(ax2, source=ctx.providers.OpenStreetMap.Mapnik, attribution="")
     ax2.set_title("Vista Street Map", fontsize=14, color="dimgray", fontweight="bold", pad=8)
     ax2.set_axis_off() 
 
@@ -270,7 +144,7 @@ def plot_individual_sample_map(config, map_df, id_sample, half_side=150, figsize
     municipality_name = mun.replace('_', ' ').upper()
     
     fig.suptitle(
-        f"Complejo residencial ''{target_label}'' ({municipality_name})",
+        f"Complejo residencial ''{target_label}'' ({municipality_name}, CC = {id_sample})",
         fontsize=14,
         fontweight="bold",
         y=0.95 
@@ -278,6 +152,9 @@ def plot_individual_sample_map(config, map_df, id_sample, half_side=150, figsize
 
     # Show image
     fig.subplots_adjust(top=0.9)
+    if save_image:
+        file_name = os.path.join(OUTPUT_DIR, f"MAP_{target_label}_{id_sample}.pdf")
+        plt.savefig(file_name, format="pdf", bbox_inches="tight")
     plt.show()
 
 
@@ -288,7 +165,9 @@ def categorical_bivariate_analysis(
         title,
         name_var_dep=None,
         name_var_ind=None,
-        figsize=(10, 5)):
+        figsize=(10, 5),
+        save_image=False 
+):
     """
     Performs a bivariate statistical and visual analysis between two categorical variables.
 
@@ -316,7 +195,8 @@ def categorical_bivariate_analysis(
         as the axis label. If None, defaults to `var_ind`.
     figsize : tuple of (float, float), default (10, 5)
         Width and height of the figure in inches.
-
+    save_image: bool [optional, default=False]
+        Indicates if figure is saved in pdf format
     Returns
     -------
     None
@@ -362,7 +242,7 @@ def categorical_bivariate_analysis(
         var_df[var_dep],
         normalize="columns"
     ) * 100
-
+    tabla_pct = tabla_pct.rename(index={0: "Ausencia (0)", 1: "Presencia (1)"})
     # ===============================
     # CONTINGENCY TABLE VISUALIZATION
     # ===============================
@@ -376,10 +256,10 @@ def categorical_bivariate_analysis(
         annot=True, 
         fmt=".1f", 
         cmap="YlGn", 
-        linewidths=1.5,       # Separa las celdas elegantemente
+        linewidths=1.5,       
         linecolor="white", 
-        cbar=True,           # Opcional: quitar barra si los números ya son claros
-        annot_kws={"size": 11, "weight": "bold"}, # Números más legibles
+        cbar=True,           
+        annot_kws={"size": 11, "weight": "bold"},
         ax=ax_heatmap
     )
 
@@ -399,13 +279,13 @@ def categorical_bivariate_analysis(
         f"Interpretación:  Relación {strength}"
     )
     ax_text.text(
-        0.05, 0.5, f"{chart_title}\n\n{chart_metrics}", 
+        0.02, 0.5, f"{chart_title}\n\n{chart_metrics}", 
         fontsize=12,
         va="center",
         ha="left",
         linespacing=1.6,
         bbox=dict(
-            boxstyle="round,pad=1.0",
+            boxstyle="round,pad=0.6",
             facecolor="#F8FAFC",  
             edgecolor="#E2E8F0",
             linewidth=1.5
@@ -415,10 +295,13 @@ def categorical_bivariate_analysis(
 
     fig.suptitle(title, fontsize=14, fontweight="bold", x=0.05, ha="left", y=0.98)
     plt.tight_layout()
+    if save_image:
+        file_name = os.path.join(OUTPUT_DIR, f"cont_{var_ind}.pdf")
+        plt.savefig(file_name, format="pdf", bbox_inches="tight")
     plt.show()
 
 
-def analyze_binary_cooccurrence(df, variables, labels_dict=None):
+def analyze_binary_cooccurrence(df, variables, labels_dict=None, save_image=False):
     '''
     Performs a co-occurrence and individual frequency analysis for two binary variables.
     
@@ -440,6 +323,8 @@ def analyze_binary_cooccurrence(df, variables, labels_dict=None):
     labels_dict : dict, optional
         A dictionary mapping the extened column names to display in
         chart text.
+    save_image: bool [optional, default=False]
+        Indicates if figure is saved in pdf format
 
     Returns
     -------
@@ -533,7 +418,7 @@ def analyze_binary_cooccurrence(df, variables, labels_dict=None):
         textprops={"fontsize": 10},
     )
     axes[0].set_title(
-        f"Distribución de coocurrencias\n({v1} y {v2})", fontsize=12, pad=15
+        f"Distribución de combinaciones de\n({v1} y {v2})", fontsize=12, pad=15
     )
 
     # Bar Plot: Individual distribution
@@ -575,6 +460,9 @@ def analyze_binary_cooccurrence(df, variables, labels_dict=None):
     # Margin
     plt.tight_layout()
     fig.subplots_adjust(bottom=0.15)
+    if save_image:
+        file_name = os.path.join(OUTPUT_DIR, f"{v1}_dist.pdf")
+        plt.savefig(file_name, format="pdf", bbox_inches="tight")
     plt.show()
     
     return df_copy
@@ -589,7 +477,8 @@ def plot_univariate_distribution(
         show_values = True,
         dict_label=None,
         order=None,
-        figsize=(10,6)
+        figsize=(10,6),
+        save_image=False
     ):
     """
     Displays the univariate distribution of a categorical variable.
@@ -620,6 +509,8 @@ def plot_univariate_distribution(
         Explicit categorical order for displaying the values of column_name.
     figsize : tuple, default (10, 6)  [optional]
         Figure size of the plot (width, height).
+    save_image: bool [optional, default=False]
+        Indicates if figure is saved in pdf format
     Returns:
     --------
     None
@@ -730,10 +621,13 @@ def plot_univariate_distribution(
              linestyle='--', alpha=0.7, color='#BDC3C7')
 
     plt.tight_layout()
+    if save_image:
+        file_name = os.path.join(OUTPUT_DIR, f"{column_name}_univariate_dist.pdf")
+        plt.savefig(file_name, format="pdf", bbox_inches="tight")
     plt.show()
 
 
-def plot_variable_occurrences(df, column_names, title=None, dict_label=None):
+def plot_variable_occurrences(df, column_names, title=None, dict_label=None, save_image=False):
     """
     Displays the frequency of occurrence (value 1) across multiple binary variables.
 
@@ -751,6 +645,8 @@ def plot_variable_occurrences(df, column_names, title=None, dict_label=None):
         The title of the generated plot. If None, a default title is used.
     dict_label : dict, optional
         Mapping between technical column names and human-readable labels.
+    save_image: bool [optional, default=False]
+        Indicates if figure is saved in pdf format
 
     Returns:
     --------
@@ -806,13 +702,16 @@ def plot_variable_occurrences(df, column_names, title=None, dict_label=None):
     # Title
     plot_title = title if title else "Frecuencia de Ocurrencia por Variable (Valor = 1)"
     ax.set_title(plot_title, fontsize=14, fontweight='bold', pad=25, loc='left')
-    
-    plt.tight_layout()
     plt.grid(axis='x', linestyle='--', alpha=0.7, color='#BDC3C7')
+
+    plt.tight_layout()
+    if save_image:
+        file_name = os.path.join(OUTPUT_DIR, f"{column_names[0]}_dist.pdf")
+        plt.savefig(file_name, format="pdf", bbox_inches="tight")
     plt.show()
 
 
-def phi_correlation(X, thr=0.45, figsize=(10, 8)):
+def phi_correlation(X, thr=0.45, figsize=(10, 8), save_image=False):
     """
     This function computes the Pearson correlation matrix (equivalent to Phi for
     binary variables), plots an heatmap, and prints a filtered list of variable pairs
@@ -826,7 +725,8 @@ def phi_correlation(X, thr=0.45, figsize=(10, 8)):
         The absolute correlation threshold to filter pairs (Defaults to 0.45)
     figsize: tuple [optional]
         Width and height of the heatmap figure in inche. (Defaults to (10, 8)).
-
+    save_image: bool [optional, default=False]
+        Indicates if figure is saved in pdf format
     Returns:
     ----------
         pandas.DataFrame:
@@ -862,7 +762,7 @@ def phi_correlation(X, thr=0.45, figsize=(10, 8)):
 
     # Title and label formatting
     plt.title(
-        "Phi Correlation Matrix Between Independent Variables",
+        r"Matriz de asociación entre variables predictoras mediante el coeficiente $\phi$",
         fontsize=14,
         pad=20,
         fontweight="bold",
@@ -877,6 +777,9 @@ def phi_correlation(X, thr=0.45, figsize=(10, 8)):
     ax.set_yticklabels(ax.get_yticklabels(), rotation=0, fontsize=10)
     sns.despine(left=True, bottom=True)
     plt.tight_layout()
+    if save_image:
+        file_name = os.path.join(OUTPUT_DIR, "corr_matrix.pdf")
+        plt.savefig(file_name, format="pdf", bbox_inches="tight")
     plt.show()
     # ================================
     # HIGH CORRELATION PAIRS FILTERING

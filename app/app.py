@@ -39,6 +39,136 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
+
+# Ensure correct display on light and dark backgrounds in any browser
+st.markdown(
+    """
+<style>
+    /* ==========================================
+       GLOBAL CONFIGURATION
+       ========================================== */
+    /* Force true light mode at the browser level */
+    :root {
+        color-scheme: light;
+    }
+
+    /* Top decorative line (Streamlit's accent bar) */
+    [data-testid="stDecoration"] {
+        background: #ff4b4b !important;
+    }
+
+    /* ==========================================
+       MAIN CONTAINERS & BACKGROUNDS
+       ========================================== */
+    /* Full application background and default text color */
+    .stApp {
+        background-color: #ffffff;
+        color: #31333f;
+    }
+
+    /* Main view container */
+    [data-testid="stAppViewContainer"] {
+        background-color: #ffffff;
+    }
+
+    /* Sidebar container */
+    [data-testid="stSidebar"] {
+        background-color: #f0f2f6;
+    }
+
+    /* Top header area */
+    [data-testid="stHeader"] {
+        background-color: white !important;
+    }
+
+    /* Header text, buttons, and inner elements */
+    [data-testid="stHeader"] * {
+        color: #31333f !important;
+    }
+
+    /* Toolbar (RUNNING / DEPLOY status) */
+    [data-testid="stToolbar"] {
+        background-color: white !important;
+    }
+
+    /* ==========================================
+       TYPOGRAPHY & DIVIDERS
+       ========================================== */
+    /* Global text color override for headings and body text */
+    h1, h2, h3, h4, h5, h6, p, span, label, div {
+        color: #31333f;
+    }
+
+    /* Custom Streamlit horizontal dividers (st.divider) */
+    hr {
+        border: none !important;
+        height: 1px !important;
+        background-color: #d3d3d3 !important;
+        opacity: 1 !important;
+    }
+
+    /* ==========================================
+       UI ELEMENTS & INPUTS
+       ========================================== */
+    /* Text inputs and textareas */
+    input, textarea {
+        background-color: white !important;
+        color: black !important;
+    }
+
+    /* Expanders (st.expander) */
+    details {
+        background-color: white;
+    }
+
+    /* Full checkbox wrapper text color */
+    .stCheckbox {
+        color: #31333f !important;
+    }
+
+    /* Unchecked checkbox box style */
+    .stCheckbox div[role="checkbox"] {
+        background-color: white !important;
+        border: 2px solid #9e9e9e !important;
+    }
+
+    /* Checked checkbox state */
+    .stCheckbox div[aria-checked="true"] {
+        background-color: #ff4b4b !important;
+        border-color: #ff4b4b !important;
+    }
+
+    /* Checkbox hover effect */
+    .stCheckbox div[role="checkbox"]:hover {
+        border-color: #ff4b4b !important;
+    }
+
+    /* ==========================================
+       FLOATING COMPONENTS (TOASTS / NOTIFICATIONS)
+       ========================================== */
+    /* Toast container styling */
+    [data-testid="stToast"] {
+        background-color: white !important;
+        color: #31333f !important;
+        border: 1px solid #dcdcdc !important;
+    }
+
+    /* Toast inner text */
+    [data-testid="stToast"] * {
+        color: #31333f !important;
+    }
+
+    /* Toast icons */
+    [data-testid="stToast"] svg {
+        fill: #31333f !important;
+    }            
+</style>
+
+<meta name="color-scheme" content="light">
+""",
+unsafe_allow_html=True,
+)
+
 st.markdown("""
 <div style="
     text-align: left;
