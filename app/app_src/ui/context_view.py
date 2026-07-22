@@ -32,7 +32,7 @@ def render_context_view():
         La expansión y adaptación de este modelo a diferentes contextos geográficos y culturales ha dado lugar a una amplia diversidad morfológica que requiere de herramientas avanzadas para su clasificación y análisis.
         <br><br>
         Esta plataforma implementa un <b>sistema automático y explicable (XAI)</b> capaz de clasificar la tipología úrbana que representa el grado de cerramiento de un desarrollo urbanístico.
-        El sistema ha sido entrenado y validado sobre la base de datos <em>"Complejos residenciales del área metropolitana de Granada"</em> [1], concebida para el estudio sociológico de la <b>fragmentación úrbana</b> [2].   
+        El sistema ha sido entrenado y validado sobre la base de datos <em>"Complejos residenciales del área metropolitana de Granada"</em> [1], concebida para el estudio sociológico de la <b>fragmentación urbana</b> [2].   
         </p>
 
         <p style="font-size: 14px; color: gray; margin-top: 0px;">
