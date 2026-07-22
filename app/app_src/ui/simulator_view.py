@@ -1,5 +1,5 @@
 """
-Streamlit predictive interface provides:
+Streamlit Simulator interface provides:
 - A customizable user interface for configuring residential complexes.
 - Prediction of enclosure degree using a trained XGBoost model.
 - SHAP-based explainability visualizations and textual explanations.
@@ -10,7 +10,6 @@ Streamlit predictive interface provides:
 # ==============================================================================
 
 import streamlit as st
-
 import matplotlib.pyplot as plt
 import pandas as pd
 import shap
@@ -18,8 +17,6 @@ import shap
 from app_src.utils.data_loader import load_dataset, load_model
 from app_src.appConfig import config
 
-import streamlit as st
-import pandas as pd
 
 
 def custom_instance():
@@ -93,9 +90,9 @@ def custom_instance():
             dis_selection = st.radio(
                 label="Solo puede seleccionarse un tipo de situación geográfica:c",
                 options=[
-                    ("DIS_1", "Urbanización aislada"),
-                    ("DIS_2", "Urbanización separada"),
-                    ("DIS_3", "Urbanización integrada en el núcleo urbano")
+                    ("DIS_1", "Aislado (DIS_1)"),
+                    ("DIS_2", "Separado (DIS_2)"),
+                    ("DIS_3", "Integrado (DIS_3)")
                 ],
                 format_func=lambda x: x[1] 
             )
@@ -132,7 +129,7 @@ def custom_instance():
                 features_data["PVI"] = 1 if st.checkbox("Entrada por vivienda (PVI)", value=False) else 0
                 features_data["PBL"] = 1 if st.checkbox("Entrada por bloque (PBL)", value=False) else 0
             with col_acc2:
-                features_data["COM"] = 1 if st.checkbox("Entrada común a la urbanización (COM)", value=False) else 0
+                features_data["COM"] = 1 if st.checkbox("Entrada común (COM)", value=False) else 0
                 features_data["COMS"] = 1 if st.checkbox("Varias entradas comunes (COMS)", value=False) else 0
                 
 
@@ -145,9 +142,9 @@ def custom_instance():
             via_selection = st.radio(
                 label="Solo puede seleccionarse un tipo de uso:",
                 options=[
-                    ("PPU", "Dominio público y de uso público"),
-                    ("PRE", "Dominio privado de uso público restringido"),
-                    ("PPR", "Dominio privado de uso privado")
+                    ("PPU", "Dominio público y de uso público (PPU)"),
+                    ("PRE", "Dominio privado de uso público restringido (PRE)"),
+                    ("PPR", "Dominio privado de uso privado (PPR)")
                 ],
                 format_func=lambda x: x[1]
             )
@@ -192,7 +189,7 @@ def custom_instance():
     return None
 
 
-def generate_shap_explication(instance_df, shap_values, pred_class_label, max_features=4, min_ratio=0.25):
+def generate_shap_explication(instance_df, shap_values, pred_class_label, max_features=4, min_ratio=0.15):
     """
     Generate a text explanation of the predicted class using SHAP values.
 
@@ -310,7 +307,100 @@ def generate_shap_explication(instance_df, shap_values, pred_class_label, max_fe
     return html_text
 
 
-def predict_instance(instance_df, num_features_display=11, figsize=[9, 5.5]):
+def get_waterfall_plots(explainer, pred_idx, instance_df, target_label_map, label_encoder, num_features_display=11, figsize=[9, 5.5]):
+    """
+    Generate and retrieve SHAP waterfall plots for all classes, separating the 
+    predicted class plot from the rest and mapping them to their corresponding labels.
+
+    Parameters
+    -----------
+    explainer : shap.Explainer
+        The trained SHAP explainer instance used to compute SHAP values.
+        
+    pred_idx : int
+        The index of the predicted class for the given instance.
+        
+    instance_df : pandas.DataFrame
+        Dataframe containing the feature data of the specific instance 
+        customized by the user.
+
+    target_label_map : dict
+        A dictionary mapping encoded or raw target values to human-readable class names.
+
+    label_encoder : sklearn.preprocessing.LabelEncoder
+        The fitted label encoder used to inverse transform the numerical class 
+        indices back to their original representation.
+
+    num_features_display : int [optional, default=11]
+        Maximum number of features displayed in the Waterfall plot.
+    
+    figsize: list [optional, default=[9, 5.5]]
+        Width and height values of the graph.
+
+    Returns
+    -----------  
+    pred_fig : matplotlib.figure.Figure
+        The standalone matplotlib figure object containing the waterfall plot 
+        for the predicted class.
+    
+    pred_shap_values: Numpy array
+        Array containing shap values for predicted class
+
+    other_figs : list of tuples
+        A list of tuples where each element contains a matplotlib figure object 
+        and its associated class name string, representing all other non-predicted classes:
+        [(fig_1, class_label_1), (fig_2, class_label_2), ...]
+    """    
+    # Get number of classes
+    num_classes = len(config.TARGET_LABEL_MAP)
+    
+    # Variables to store data
+    other_figs = []
+    pred_fig = None    
+    pred_shap_values = None
+
+    for class_idx in range(num_classes):
+        # Initialize matplotlib figure
+        plt.figure()
+
+        # Calculate shap for instance and get expected value for predicted class
+        shap_values = explainer.shap_values(instance_df)[:,:,class_idx][0]
+        expected_value = explainer.expected_value[class_idx]
+
+        # Create explainer SHAP object
+        exp = shap.Explanation(
+            values=shap_values,
+            base_values=expected_value,
+            data=instance_df.iloc[0].values,
+            feature_names=instance_df.columns
+        )
+        # Get waterfall plot
+        shap.plots.waterfall(
+            exp,
+            max_display=num_features_display,
+            show=False
+        )
+        # Customize with matplotlib.pyplot
+        fig = plt.gcf()  
+        fig.set_size_inches(figsize[0], figsize[1])  
+
+        # Add grid and adjust marginds
+        plt.grid(axis="x", linestyle="--", alpha=0.5, zorder=0)
+        plt.tight_layout()        
+
+        # Store figures and data
+        if class_idx == pred_idx:
+            pred_fig = fig
+            pred_shap_values = shap_values
+        else:
+            # Get class label
+            class_label = target_label_map[label_encoder.inverse_transform([class_idx])[0]]
+            other_figs.append((fig, class_label))
+    
+    return pred_fig, pred_shap_values, other_figs    
+
+
+def predict_instance(instance_df):
     """
     Predict the class of a user-defined instance and generate a SHAP-based 
     explainability report, including a waterfall visualization and a textual
@@ -334,9 +424,15 @@ def predict_instance(instance_df, num_features_display=11, figsize=[9, 5.5]):
 
     probabilities: list
         List of probabilities per class obtained by the model
-    
-    fig: matplotlib.figure.Figure
-        Object figure that contains the generated visualization.
+
+    pred_fig : matplotlib.figure.Figure
+        Matplotlib figure object containing the waterfall plot 
+        for the predicted class.
+
+    other_figs : list of tuples
+        A list of tuples where each element contains a matplotlib figure object (waterfall plot)
+        and its associated class name string, representing all other non-predicted classes:
+        [(fig_1, class_label_1), (fig_2, class_label_2), ...]
 
     html_text: str
         HTML-formatted text containing the explainability message generated
@@ -360,45 +456,23 @@ def predict_instance(instance_df, num_features_display=11, figsize=[9, 5.5]):
     probabilities = model.predict_proba(instance_df)[0]
 
     # ==========================
-    # GET SHAP WATERFALL PLOT
+    # GET SHAP WATERFALL PLOTS
     # ==========================
     
-    # Calculate shap for instance and get expected value for predicted class
-    shap_values = explainer.shap_values(instance_df)[:,:,pred_idx][0]
-    expected_value = explainer.expected_value[pred_idx]
+    pred_fig, pred_shap_values, other_figs = get_waterfall_plots(explainer, pred_idx, instance_df, target_label_map, label_encoder)
 
-    # Create explainer SHAP object
-    exp = shap.Explanation(
-        values=shap_values,
-        base_values=expected_value,
-        data=instance_df.iloc[0].values,
-        feature_names=instance_df.columns
-    )
-    # Get waterfall plot
-    shap.plots.waterfall(
-        exp,
-        max_display=num_features_display,
-        show=False
-    )
-    # Customize with matplotlib.pyplot
-    fig = plt.gcf()  
-    fig.set_size_inches(figsize[0], figsize[1])  
+    # Get SHAP text explanation for predicted class
+    html_text = generate_shap_explication(instance_df, pred_shap_values, pred_label)
 
-    # Add grid and adjust marginds
-    plt.grid(axis="x", linestyle="--", alpha=0.5, zorder=0)
-    plt.tight_layout()
-
-    # Get SHAP text explanation
-    html_text = generate_shap_explication(instance_df, shap_values, pred_label)
-
-    return pred_label, probabilities, fig, html_text
+    return pred_label, probabilities, pred_fig, other_figs, html_text
 
 
-def render_predict_interface():
+def render_simulator_interface():
     """
-    Render the predictor interface for streamlit platform, including:
-    - Button form to allow residential complex customization
+    Render the Simulator interface for streamlit platform, including:
+    - Button form to allow residential complex customization.
     - Model prediction of customized residential complex with SHAP explainability.
+    - Model probabilities of all classes and alternative SHAP waterfall plots.
 
     Parameters
     -----------
@@ -420,11 +494,12 @@ def render_predict_interface():
     st.markdown(
         """
         <p style='color: #475569; font-size: 1.12rem; line-height: 1.5; margin-bottom: 15px;'>
-            💡 Configure las características morfológicas de su complejo residencial mediante el formulario disponible.
+            💡 Configure las características morfológicas de un complejo residencial mediante el formulario disponible.
             <br><br>
             Pulse el botón
             <span style='background-color: #FF4B4B; color: #ffffff; padding: 2px 6px; border-radius: 4px; font-weight: bold;'>PREDECIR</span> 
-            para obtener el <b>grado de cerramiento</b> estimado por el modelo, junto con su análisis de explicabilidad basado en SHAP
+            para obtener el <b>grado de cerramiento</b> estimado, las probabilidades asociadas a cada categoría y el
+            análisis de explicabilidad de la decisión mediante SHAP.
         </p>
         """, 
         unsafe_allow_html=True
@@ -436,7 +511,7 @@ def render_predict_interface():
     # Verify if the user has clicked the predict button
     if instance_df is not None:
         # Predict instance and get SHAP explainability
-        predicted_label, probabilities, fig_shap, explainability_text = predict_instance(instance_df)
+        predicted_label, probabilities, pred_fig_shap, other_figs_shap, explainability_text = predict_instance(instance_df)
         with st.container(border=True):
             col_prediction, _, col_graph = st.columns([2, 0.1, 3])
             
@@ -476,7 +551,7 @@ def render_predict_interface():
                 )
                 
                 # Plot horizontal bar chart with probabilities
-                st.markdown("### 📈 Probabilidad por grado de cerramiento")
+                st.markdown("### 📈 Distribución de probabilidades")
                 st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
                 
                 total_prob = sum(probabilities)
@@ -504,26 +579,30 @@ def render_predict_interface():
                     st.markdown(
                         f"""
                         <div style='margin-bottom: 35px;'>
-                            <div style='display: flex; justify-content: space-between; margin-bottom: 5px; {text_style}'>
-                                <span>{label_display}</span>
-                                <span>{prob_percentage:.1f}%</span>
+                            <div style='display: flex; justify-content: space-between; margin-bottom: 5px;'>
+                                <span style="{text_style}">
+                                    {label_display}
+                                </span>
+                                <span style="font-weight: 600; color: #475569;">
+                                    {prob_percentage:.1f}%
+                                </span>
                             </div>
                             <div style='
-                                background-color: {bg_bar_color}; 
-                                width: 100%; 
-                                height: 10px; 
-                                border-radius: 5px; 
+                                background-color: {bg_bar_color};
+                                width: 100%;
+                                height: 10px;
+                                border-radius: 5px;
                                 overflow: hidden;
                             '>
                                 <div style='
-                                    background-color: {bar_color}; 
-                                    width: {ratio}%; 
-                                    height: 100%; 
+                                    background-color: {bar_color};
+                                    width: {ratio}%;
+                                    height: 100%;
                                     border-radius: 5px;
                                 '></div>
                             </div>
                         </div>
-                        """, 
+                        """,
                         unsafe_allow_html=True
                     )
                     
@@ -533,14 +612,72 @@ def render_predict_interface():
             # WATERFALL PLOT AND TEXT EXPLAINABILITY
             # =========================================================================
             with col_graph:
-                st.markdown(f"""### 📊 Waterfall Plot de la clase predicha: ''{predicted_label}''""")
+                st.markdown(f"""### 📊 Gráfico cascada del grado de cerramiento predicho: *{predicted_label}*""")
                 with st.container(border=True):
                     # Plot shap graph
-                    st.pyplot(fig_shap, clear_figure=True, bbox_inches="tight")
+                    st.pyplot(pred_fig_shap, clear_figure=True, bbox_inches="tight")
                                     
                 st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
 
             # Display explainability text
             st.markdown(explainability_text, unsafe_allow_html=True)
-                    
-                          
+            
+            # =========================================================================
+            # WATERFALL PLOT OF THE REST OF THE CLASSES
+            # =========================================================================
+        with st.expander("🔍 Análisis complementario de grados de cerramiento alternativos"):
+            st.markdown(
+                    """
+                    <p style='font-size: 1.1rem; color: #556370; margin-bottom: 20px;'>
+                    Consulte la contribución de las variables en los grados de cerramiento alternativos
+                    mediante gráficos cascada (<i>waterfall plots</i>) de SHAP. 
+                    </p>
+                    """, 
+                    unsafe_allow_html=True
+            )
+            # Create a 2x2 matrix to display the four waterfall plots
+            fil_0 = st.columns(2)
+            fil_1 = st.columns(2)
+            cell = [fil_0[0], fil_0[1], fil_1[0], fil_1[1]]
+
+            # Loop to display the figures
+            for i, (fig, class_name) in enumerate(other_figs_shap):
+                if i >= len(cell):
+                    break
+                
+                # Get label styler
+                style_info = next(
+                    (info for info in class_styles.values() if info["label"] == class_name), 
+                    {"hex_code": "#31333F"}
+                )
+                current_color = style_info["hex_code"]
+                
+                # Color background
+                current_bg = f"rgba({int(current_color.lstrip('#')[0:2], 16)}, {int(current_color.lstrip('#')[2:4], 16)}, {int(current_color.lstrip('#')[4:6], 16)}, 0.08)"
+                # ----------------------------------------
+
+                with cell[i]:
+                    # Container for the figure
+                    with st.container(border=True):
+                        
+                        # Set the label as title
+                        st.markdown(
+                            f"""
+                            <div style='
+                                background-color: {current_bg}; 
+                                border-left: 5px solid {current_color}; 
+                                padding: 10px 14px; 
+                                border-radius: 6px;
+                                margin-bottom: 15px;
+                                text-align: left;
+                            '>
+                                <p style='margin: 2px 0 0 0; font-size: 1.2rem; font-weight: bold; color: {current_color};'>
+                                    {class_name}
+                                </p>
+                            </div>
+                            """, 
+                            unsafe_allow_html=True
+                        )
+                        
+                        # Display figure
+                        st.pyplot(fig, use_container_width=True, clear_figure=True)          

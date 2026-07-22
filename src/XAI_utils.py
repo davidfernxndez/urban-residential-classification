@@ -18,8 +18,11 @@ from dtreeviz import model
 from sklearn.preprocessing import LabelEncoder
 import ast
 import copy
-
 from IPython.display import display
+
+from src.config import cfg
+# Path to save images in PDF format
+OUTPUT_DIR = cfg.OUTPUT_DIR
 
 # ==============================================================================
 # MULTINOMIAL LOGISTIC REGRESSION
@@ -134,7 +137,7 @@ def load_lr_coefs(config, model_path):
     return LR_coef_df, LR_odds_df
 
 
-def plot_lr_feature_importance(LR_coef_df, criterion = "mean", figsize=[14, 7]):
+def plot_lr_feature_importance(LR_coef_df, criterion = "mean", figsize=[14, 7], save_image=False):
     """
     Plot a horizontal bar chart of logistic regression coefficients
     order by feature importance according to specified criterion.
@@ -150,6 +153,10 @@ def plot_lr_feature_importance(LR_coef_df, criterion = "mean", figsize=[14, 7]):
     
     figsize: list [optional, default=[14, 7]]
         Width and height values of the graph.
+
+    save_image: bool [optional, default=False]
+        Indicates if figure is saved in pdf format
+
     Returns
     -------
     None
@@ -246,10 +253,13 @@ def plot_lr_feature_importance(LR_coef_df, criterion = "mean", figsize=[14, 7]):
 
 
     plt.subplots_adjust(left=0.15, right=0.55, top=0.90)
+    if save_image:
+        file_name = os.path.join(OUTPUT_DIR, "LR_importancia_variables.pdf")
+        plt.savefig(file_name, format="pdf", bbox_inches="tight")
     plt.show()
 
 
-def plot_lr_class_coefs(LR_coef_df, class_label):
+def plot_lr_class_coefs(LR_coef_df, class_label, save_image=False):
     """
     Plot a horizontal bar chart of logistic regression coefficients
     for a specific class, organized by thematic feature groups.
@@ -268,6 +278,9 @@ def plot_lr_class_coefs(LR_coef_df, class_label):
 
     class_label : str or int
         The target class for which coefficients will be visualized.
+
+    save_image: bool [optional, default=False]
+        Indicates if figure is saved in pdf format
 
     Returns
     -------
@@ -426,6 +439,9 @@ def plot_lr_class_coefs(LR_coef_df, class_label):
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
     plt.tight_layout()
+    if save_image:
+        file_name = os.path.join(OUTPUT_DIR, f"LR_{class_label}.pdf")
+        plt.savefig(file_name, format="pdf", bbox_inches="tight")
     plt.show()
 
 
@@ -433,7 +449,7 @@ def plot_lr_class_coefs(LR_coef_df, class_label):
 # DECISION TREE
 # ==============================================================================
 
-def plot_tree_feature_importance(config, model_path, figsize=[14, 7]):
+def plot_tree_feature_importance(config, model_path, figsize=[14, 7], save_image=False):
     """
     Plot a horizontal bar chart of decision tree feature importance.
 
@@ -452,6 +468,10 @@ def plot_tree_feature_importance(config, model_path, figsize=[14, 7]):
     
     figsize: list [optional, default=[14,7]]
         Width and height values of the graph.
+
+    save_image: bool [optional, default=False]
+        Indicates if figure is saved in pdf format
+    
     Returns
     -------
     None
@@ -577,6 +597,9 @@ def plot_tree_feature_importance(config, model_path, figsize=[14, 7]):
 
 
     plt.subplots_adjust(left=0.15, right=0.55, top=0.90, bottom=0.10)
+    if save_image:
+        file_name = os.path.join(OUTPUT_DIR, "DT_importancia_variables.pdf")
+        plt.savefig(file_name, format="pdf", bbox_inches="tight")
     plt.show()
 
 
@@ -1026,7 +1049,7 @@ def get_shap_tree(config, model_path):
     return shap_values
 
 
-def plot_shap_global_feature_importance(config, shap_values, model_name, num_features_display=10, figsize=[10, 8]):
+def plot_shap_global_feature_importance(config, shap_values, model_name, num_features_display=10, figsize=[10, 8], save_image=False):
     """
     This function computes the global feature importance by averaging
     the absolute SHAP values across all samples and classes, and
@@ -1058,6 +1081,9 @@ def plot_shap_global_feature_importance(config, shap_values, model_name, num_fea
     
     figsize: list [optional, default=[10,8]]
         Width and height values of the graph.
+
+    save_image: bool [optional, default=False]
+        Indicates if figure is saved in pdf format
 
     Returns
     -------
@@ -1145,6 +1171,9 @@ def plot_shap_global_feature_importance(config, shap_values, model_name, num_fea
     plt.grid(axis="x", linestyle="--", alpha=0.5, zorder=0)
     
     plt.tight_layout()
+    if save_image:
+        file_name = os.path.join(OUTPUT_DIR, f"{model_name}_importancia_variables.pdf")
+        plt.savefig(file_name, format="pdf", bbox_inches="tight")
     plt.show()
 
 
@@ -1299,7 +1328,7 @@ def plot_shap_heatmap(config, shap_values, model_name, figsize=[10, 8]):
     plt.show()
 
 
-def plot_shap_class_dashboard(config, shap_values, class_label, model_name, num_features_display=10, figsize=[18, 10]):
+def plot_shap_class_dashboard(config, shap_values, class_label, model_name, num_features_display=10, figsize=[18, 10], save_image=False):
     """
     Generate a side-by-side SHAP analysis visualization for a specific target class.
 
@@ -1340,6 +1369,9 @@ def plot_shap_class_dashboard(config, shap_values, class_label, model_name, num_
     
     figsize: list [optional, default=[18, 10]]
         Width and height values of the graph.
+
+    save_image: bool [optional, default=False]
+        Indicates if figure is saved in pdf format
 
     Returns
     -------
@@ -1470,6 +1502,9 @@ def plot_shap_class_dashboard(config, shap_values, class_label, model_name, num_
     )
 
     plt.subplots_adjust(top=0.87)
+    if save_image:
+        file_name = os.path.join(OUTPUT_DIR, f"{model_name}_{class_label}.pdf")
+        plt.savefig(file_name, format="pdf", bbox_inches="tight")
     plt.show()
 
 
@@ -1508,6 +1543,8 @@ def get_shap_out_of_fold(config, model, model_name):
             Unique identifier column name 
         - TARGET_VARIABLE : str
             Target variable column name
+        - TARGET_LABEL_LIST : list
+            Target label names.
 
     model : object
         A scikit-learn compatible model instance.
@@ -1521,6 +1558,9 @@ def get_shap_out_of_fold(config, model, model_name):
     all_pred_info_df: pandas.DataFrame:
         Out-of-fold predictions for all samples across all outer folds, including 
         true targets, predicted classes, maximum probabilities, and fold indices.
+
+    all_proba_df: pandas.DataFrame:
+        Out-of-fold probabilities for all samples across classes.
 
     all_shap_info_df: pandas.DataFrame:
         Out-of-fold shap values for all samples across al outer folds.
@@ -1561,6 +1601,9 @@ def get_shap_out_of_fold(config, model, model_name):
     id_variable = config.ID_VARIABLE
     target_variable = config.TARGET_VARIABLE
 
+    # List with label names
+    target_label_list = config.TARGET_LABEL_LIST
+    
     # =========================================================
     # LOAD DATASET
     # =========================================================
@@ -1596,6 +1639,7 @@ def get_shap_out_of_fold(config, model, model_name):
     # OUT-OF-FOLD PREDICTION+SHAP LOOP
     # =========================================================  
     pred_info_list = []
+    proba_list = []
     shap_info_list = []
     expected_values_folds = []  
 
@@ -1706,8 +1750,12 @@ def get_shap_out_of_fold(config, model, model_name):
             "prob": max_prob,
             "fold": outer_fold_idx
         })
-
         pred_info_list.append(pred_info_df)
+
+        # Store probabilities dataframe for current fold
+        proba_df = pd.DataFrame(y_proba, columns=target_label_list)
+        proba_df[id_variable] = test_df.index
+        proba_list.append(proba_df)
 
         # =====================================================
         # GET SHAP VALUES
@@ -1771,6 +1819,7 @@ def get_shap_out_of_fold(config, model, model_name):
     all_pred_info_df = pd.concat(pred_info_list, ignore_index=True)
     all_shap_info_df = pd.concat(shap_info_list, ignore_index=True)
     expected_shap_values_df = pd.DataFrame(expected_values_folds)
+    all_proba_df = pd.concat(proba_list, ignore_index=True)
 
     # Create output folder for SHAP local
     output_custom_dir = os.path.join(
@@ -1795,12 +1844,15 @@ def get_shap_out_of_fold(config, model, model_name):
         os.path.join(output_custom_dir, f"{model_name}_expected_shap_values.csv"),
         index=False
     )
-
+    all_proba_df.to_csv(
+        os.path.join(output_custom_dir, f"{model_name}_probabilities.csv"),
+        index=False
+    )
     print("\n" + "="*80)
     print(" PROCESS COMPLETED SUCCESSFULLY ".center(80, " "))
     print("="*80 + "\n")
 
-    return all_pred_info_df, all_shap_info_df, expected_shap_values_df    
+    return all_pred_info_df, all_proba_df, all_shap_info_df, expected_shap_values_df    
 
 
 def plot_shap_waterfall(
@@ -1811,7 +1863,10 @@ def plot_shap_waterfall(
         id_sample,
         model_name,
         num_features_display=11,
-        figsize=[10,8]):
+        figsize=[10,8],
+        save_image=False
+    
+    ):
     """
     This method displays a SHAP waterfall plot to explain a specific prediction of sample identified
     by id_sample input parameter.
@@ -1859,7 +1914,10 @@ def plot_shap_waterfall(
     
     figsize: list [optional, default=[10, 18]]
         Width and height values of the graph.
-
+    
+    save_image: bool [optional, default=False]
+        Indicates if figure is saved in pdf format
+    
     Returns
     -------
     None
@@ -2011,6 +2069,9 @@ def plot_shap_waterfall(
     
     # Adjust top margin to avoid the text enter in the graph
     plt.subplots_adjust(top=0.82)
+    if save_image:
+        file_name = os.path.join(OUTPUT_DIR, f"{model_name}_{actual_class_label}_{id_sample}.pdf")
+        plt.savefig(file_name, format="pdf", bbox_inches="tight")
     plt.show()
 
 
@@ -2022,7 +2083,9 @@ def plot_misclassification_shap_waterfall(
         id_sample,
         model_name,
         num_features_display=11,
-        figsize=[10,8]):
+        figsize=[10,8],
+        save_image=False        
+        ):
     """
     This function displays two SHAP waterplot charts to illustrate the misclassification of a sample. Specifically:
     - The first chart shows the waterfall of the actual class.
@@ -2072,6 +2135,9 @@ def plot_misclassification_shap_waterfall(
     figsize: list [optional, default=[10, 8]]
         Width and height values of the graph.
 
+    save_image: bool [optional, default=False]
+        Indicates if figure is saved in pdf format
+    
     Returns
     -------
     None
@@ -2247,6 +2313,9 @@ def plot_misclassification_shap_waterfall(
     
     # Adjust top margin to avoid the text enter in the graph
     plt.subplots_adjust(top=0.8)
+    if save_image:
+        file_name = os.path.join(OUTPUT_DIR, f"{model_name}_real_{id_sample}.pdf")
+        plt.savefig(file_name, format="pdf", bbox_inches="tight")
     plt.show()
 
     # ==========================================================
@@ -2279,4 +2348,8 @@ def plot_misclassification_shap_waterfall(
     
     # Adjust top margin to avoid the text enter in the graph
     plt.subplots_adjust(top=0.95)
+    if save_image:
+        file_name = os.path.join(OUTPUT_DIR, f"{model_name}_predicho_{id_sample}.pdf")
+        plt.savefig(file_name, format="pdf", bbox_inches="tight")
     plt.show()
+

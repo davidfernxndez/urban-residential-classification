@@ -1,5 +1,5 @@
 """
-Streamlit explainability interface: Combines geospatial visualization and SHAP-based local
+Streamlit explorative interface: Combines geospatial visualization and SHAP-based local
 interpretability in an interactive dashboard.
 """
 
@@ -63,10 +63,10 @@ def extract_selected_cc(map_output):
     return None
 
 
-def get_shap_waterfall(selected_cc, num_features_display=11, figsize=[9, 5.5]):
+def get_waterfall_plots(selected_cc, num_features_display=11, figsize=[9, 5.5]):
     """
-    This method generates a SHAP waterfall plot to explain a specific prediction of sample identified
-    by selected_cc input parameter.
+    Generates and returns SHAP waterfall plots for a sample specified by selected_cc.
+    Maps each plot to its corresponding class label and separates the predicted class plot from the rest.  
     
     Parameters
     ----------
@@ -81,8 +81,17 @@ def get_shap_waterfall(selected_cc, num_features_display=11, figsize=[9, 5.5]):
 
     Returns
     -------
-    fig: matplotlib.figure.Figure
-        Object figure that contains the generated visualization.
+    pred_class_label: string
+        Label name for predicted class.
+
+    pred_fig : matplotlib.figure.Figure
+        The standalone matplotlib figure object containing the waterfall plot 
+        for the predicted class.
+
+    other_figs : list of tuples
+        A list of tuples where each element contains a matplotlib figure object 
+        and its associated class name string, representing all other non-predicted classes:
+        [(fig_1, class_label_1), (fig_2, class_label_2), ...]
     """
     # Convert string to int to filter dataframes
     cc_int = int(selected_cc) 
@@ -94,11 +103,14 @@ def get_shap_waterfall(selected_cc, num_features_display=11, figsize=[9, 5.5]):
     target_variable = config.TARGET_VARIABLE
     target_label_map = config.TARGET_LABEL_MAP
 
+    # Get number of classes
+    num_classes = len(target_label_map)
+
     # =========================================================
     # LOAD REQUIRED DATAFRAMES
     # =========================================================
     dataset_df = load_dataset()
-    expected_value_df, pred_info_df, shap_values_df = load_shap_data()
+    expected_value_df, pred_info_df, _, shap_values_df = load_shap_data()
 
     # =========================================================
     # GET FEATURE DATA 
@@ -122,11 +134,11 @@ def get_shap_waterfall(selected_cc, num_features_display=11, figsize=[9, 5.5]):
     # ========================================================= 
 
     # Get predicted class
-    pred_class = pred_info_df.loc[
+    pred_idx = pred_info_df.loc[
         pred_info_df[id_variable] == cc_int,
         f"{target_variable}_pred"
     ].iloc[0]
-    pred_class_label = target_label_map[pred_class]
+    pred_class_label = target_label_map[pred_idx]
 
     # Get fold of the class to extract expected value
     fold_idx = pred_info_df.loc[
@@ -134,61 +146,70 @@ def get_shap_waterfall(selected_cc, num_features_display=11, figsize=[9, 5.5]):
         "fold"
     ].iloc[0]
 
-    # ==========================================================
-    # EXTRACT EXPECTED VALUE FOR PREDICTED CLASS (SHAP REFERENCE)
-    # ==========================================================
-    expected_value = expected_value_df.loc[
-        expected_value_df["fold"] == fold_idx,
-        f"class_{pred_class}"
-    ].iloc[0]
+    # Variables to store figures
+    other_figs = []
+    pred_fig = None
+    for class_idx in range(1, num_classes+1):
+        # Extract expected value for current class
+        expected_value = expected_value_df.loc[
+            expected_value_df["fold"] == fold_idx,
+            f"class_{class_idx}"
+        ].iloc[0]
 
-    # ==========================================================
-    # GET SHAP VALUES FOR PREDICTED CLASS
-    # ==========================================================    
-    sample_shap_values_df = shap_values_df[
-        (shap_values_df[id_variable] == cc_int) &
-        (shap_values_df[target_variable] == pred_class)
-    ].copy()
+        # Get SHAP values for current class   
+        sample_shap_values_df = shap_values_df[
+            (shap_values_df[id_variable] == cc_int) &
+            (shap_values_df[target_variable] == class_idx)
+        ].copy()
 
-    # Order features according to feature names
-    sample_shap_values_df["feature"] = pd.Categorical(
-        sample_shap_values_df["feature"],
-        categories=feature_names,
-    ordered=True
-    )
-    sample_shap_values_df = sample_shap_values_df.sort_values("feature")
+        # Order features according to feature names
+        sample_shap_values_df["feature"] = pd.Categorical(
+            sample_shap_values_df["feature"],
+            categories=feature_names,
+        ordered=True
+        )
+        sample_shap_values_df = sample_shap_values_df.sort_values("feature")
 
-    # Get values as 1D array
-    shap_values = sample_shap_values_df["shap_value"].values
+        # Get values as 1D array
+        shap_values = sample_shap_values_df["shap_value"].values
 
-    # ==========================================================
-    # WATERFALL PLOT
-    # ==========================================================    
+        # ==========================================================
+        # WATERFALL PLOT
+        # ==========================================================    
+        # Initialize matplotlib figure
+        plt.figure()
 
-    # Create explainer object
-    exp = shap.Explanation(
-        values=shap_values,
-        base_values=expected_value,
-        data=feature_values,
-        feature_names=feature_names
-    )
+        # Create explainer object
+        exp = shap.Explanation(
+            values=shap_values,
+            base_values=expected_value,
+            data=feature_values,
+            feature_names=feature_names
+        )
 
-    # Generate SHAP waterfall plot
-    shap.plots.waterfall(
-        exp,
-        max_display=num_features_display,
-        show=False
-    )
-    # Custom plot with matplotlib
-    fig = plt.gcf()  
-    fig.set_size_inches(figsize[0], figsize[1])  
+        # Generate SHAP waterfall plot
+        shap.plots.waterfall(
+            exp,
+            max_display=num_features_display,
+            show=False
+        )
+        # Custom plot with matplotlib
+        fig = plt.gcf()  
+        fig.set_size_inches(figsize[0], figsize[1])  
 
-    # Add grid and adjust marginds
-    plt.grid(axis="x", linestyle="--", alpha=0.5, zorder=0)
-  
-    plt.tight_layout()
+        # Add grid and adjust marginds
+        plt.grid(axis="x", linestyle="--", alpha=0.5, zorder=0)
+        plt.tight_layout()
 
-    return fig, pred_class_label
+        # Store figures and data
+        if class_idx == pred_idx:
+            pred_fig = fig
+        else:
+            # Get class label
+            class_label = target_label_map[class_idx]
+            other_figs.append((fig, class_label))
+
+    return pred_class_label, pred_fig, other_figs
 
 
 def render_descriptive_data(selected_cc, descriptive_df):
@@ -234,7 +255,7 @@ def render_descriptive_data(selected_cc, descriptive_df):
     row_map = descriptive_df[descriptive_df[id_variable] == selected_cc].iloc[0]
 
     # Set main title
-    st.markdown("### 🔍 Explicabilidad de la predicción con SHAP")
+    st.markdown("### 💡 Explicabilidad de la predicción con SHAP")
     st.markdown(
         """
         <style>
@@ -298,7 +319,7 @@ def render_descriptive_data(selected_cc, descriptive_df):
     # =========================================================
     # FEATURE DATA SECTION
     # =========================================================
-    st.markdown("#### 🗂️ Características Morfológicas")
+    st.markdown("#### Características Morfológicas")
 
     # Selec feature data from current residential complex (selected cc)
     row = dataset_df[dataset_df[id_variable] == int(selected_cc)].iloc[0]
@@ -310,7 +331,7 @@ def render_descriptive_data(selected_cc, descriptive_df):
         return f"<div>{icon}{label}</div>"
 
     # Structural aspects
-    with st.expander("🧱 Aspectos Estructurales", expanded=True):
+    with st.expander("🧱 Aspectos Estructurales", expanded=False):
         html_content = "".join([
             format_binary_feature("Calle sin salida (CSS)", row["CSS"]),
             format_binary_feature("Calle en fondo de saco (CFS)", row["CFS"]),
@@ -373,7 +394,7 @@ def render_descriptive_data(selected_cc, descriptive_df):
         st.markdown(html_content, unsafe_allow_html=True)
 
 
-def generate_shap_explication(selected_cc, max_features=4, min_ratio=0.25):
+def generate_shap_explication(selected_cc, max_features=4, min_ratio=0.15):
     """
     Generate a text explanation of the predicted class using SHAP values.
 
@@ -415,7 +436,7 @@ def generate_shap_explication(selected_cc, max_features=4, min_ratio=0.25):
     # LOAD REQUIRED DATAFRAMES
     # =========================================================
     dataset_df = load_dataset()
-    _, pred_info_df, shap_values_df = load_shap_data()
+    _, pred_info_df, _, shap_values_df = load_shap_data()
 
     # ==========================================================
     # GET SHAP VALUES FOR PREDICTED CLASS
@@ -495,7 +516,7 @@ def generate_shap_explication(selected_cc, max_features=4, min_ratio=0.25):
         margin-bottom: 20px;
         line-height: 1.6;
         color: #333333;
-        font-size: 1.15rem; /* <-- Aumenta el tamaño de todo el texto base */
+        font-size: 1.15rem; 
         '>
         <span style='font-size: 1.3rem; vertical-align: middle;'>💡</span> 
         El complejo residencial ha sido clasificado en el grado de cerramiento
@@ -507,9 +528,9 @@ def generate_shap_explication(selected_cc, max_features=4, min_ratio=0.25):
     return html_text
 
 
-def render_explainability_interface():
+def render_explorative_interface():
     """
-    Render the SHAP-based explainability interface for streamlit platform, including:
+    Render the SHAP-based explorative interface for streamlit platform, including:
     - A Folium-based interactive map with color-coded residential complexes
         according to their predicted enclosure level.
     - A legend describing classification categories.
@@ -517,6 +538,8 @@ def render_explainability_interface():
         complex on the map.
     - A SHAP waterfall plot and a human-readable explanation of the model
         prediction for the selected complex.
+    - Model probabilities for all classes.
+    - SHAP Waterfall plots for alternative classes (not predicted).
 
     Parameters
     -----------
@@ -530,6 +553,7 @@ def render_explainability_interface():
     # LOAD CONFIGURATION VARIABLES
     # =========================================================
     class_styles = config.CLASS_STYLES
+    id_variable = config.ID_VARIABLE
 
     # ==========================
     # LOAD REQUIRED DATA
@@ -542,7 +566,7 @@ def render_explainability_interface():
         return
     
     # Load predictive information to cross-reference classification labels belongs to.
-    _, df_pred, _ = load_shap_data()
+    _, df_pred, df_prob, _ = load_shap_data()
     if df_pred.empty:
         st.warning("The prediction information is not available.")
         return   
@@ -556,13 +580,13 @@ def render_explainability_interface():
     # =========================================================
     # UI Headers and Descriptions
     # ========================================================= 
-    st.subheader("Predicción y explicabilidad del censo de complejos residenciales (área Metropolitana de Granada)")
+    st.subheader("Predicción y explicabilidad del censo de complejos residenciales del área metropolitana de Granada")
     st.markdown(
         """
         <p style='color: #475569; font-size: 1.12rem; line-height: 1.5; margin-bottom: 15px;'>
-            💡 Desplázese sobre el mapa y sitúe el cursor sobre los complejos residenciales para ver su información.
-            <span style='background-color: #e6effa; color: #1e3d59; padding: 2px 6px; border-radius: 4px; font-weight: bold;'>Haz clic sobre el marcador</span> 
-            para desplegar el análisis de explicabilidad mediante SHAP en el panel inferior.
+            💡 Explore el mapa y sitúe el cursor sobre los complejos residenciales para consultar su información.
+            <span style='background-color: #e6effa; color: #1e3d59; padding: 2px 6px; border-radius: 4px; font-weight: bold;'>Haga clic sobre un marcador</span> 
+            para acceder al análisis de explicabilidad mediante SHAP y visualizar los factores que influyen en la decisión del modelo.
         </p>
         """, 
         unsafe_allow_html=True
@@ -631,9 +655,10 @@ def render_explainability_interface():
             name=id       
         ).add_to(marker_cluster)
 
-    #########################################
+    # ==========================
     # CANVAS LAYOUT 
-    #########################################
+    # ==========================
+
     # CSS configuration to prevent the folium map from leaving blank margins below and above it
     st.markdown("""
     <style>
@@ -657,9 +682,10 @@ def render_explainability_interface():
     </style>
     """, unsafe_allow_html=True)
 
-    # --- ROW 1: MAP (LEFT) AND LEGEND (RIGHT) ---
+    # ==========================
+    # MAP (LEFT) AND LEGEND (RIGHT)
+    # ==========================
     # A 5:1 aspect ratio is used so that the map dominates almost the entire screen.
-
     col_map, col_legend = st.columns([5, 1])
     with col_map:
         # st_folium adapts to the width of the page
@@ -725,11 +751,17 @@ def render_explainability_interface():
 
             st.markdown("</div>", unsafe_allow_html=True)
     
-
-    # --- EXTRACTION AND PERSISTENCE OF THE ID SELECTED BY THE USER IN THE MAP (CC) ---
+    # ==========================
+    # EXTRACTION AND PERSISTENCE 
+    # OF THE ID SELECTED BY THE 
+    # USER IN THE MAP (CC)
+    # ==========================
     selected_cc = extract_selected_cc(map_output)
 
-    # --- ROW 2: DESCRIPTIVE DATA (LEFT) AND SHAP GRAPH (RIGHT) ---
+    # ==========================
+    # DESCRIPTIVE DATA (LEFT) AND
+    # MAIN SHAP GRAPH (RIGHT) 
+    # ==========================
     if selected_cc:
         # Show selected CC with toast card
         if st.session_state.get("last_toasted_cc") != selected_cc:
@@ -738,24 +770,161 @@ def render_explainability_interface():
             st.session_state["last_toasted_cc"] = selected_cc
 
         with st.container(border=True):
-            col_data, _, col_graph = st.columns([2, 0.1, 3]) 
+            col_data, _, col_figure = st.columns([2, 0.1, 3]) 
             with col_data:
                 render_descriptive_data(selected_cc, df_map)
 
-            with col_graph:
+            with col_figure:
                 # Get SHAP Waterfall GRAPH
-                fig_shap, pred_class_label = get_shap_waterfall(selected_cc, num_features_display=11, figsize=[9, 5.5])
-                if fig_shap:
+                predicted_label, pred_fig_shap, other_figs_shap = get_waterfall_plots(selected_cc, num_features_display=11, figsize=[9, 5.5])
+                if pred_fig_shap:
                     # Display figure
-                    st.markdown(f"""### 📊 Waterfall Plot de la clase predicha: ''{pred_class_label}''""")
+                    st.markdown(f"""### 📊 Gráfico cascada del grado de cerramiento predicho: *{predicted_label}*""")
                     with st.container(border=True):
-                        st.pyplot(fig_shap, clear_figure=True, bbox_inches="tight")
+                        st.pyplot(pred_fig_shap, clear_figure=True, bbox_inches="tight")
                     
                     st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
 
                     # Display explainability text
                     explainability_text = generate_shap_explication(selected_cc=selected_cc)
                     st.markdown(explainability_text, unsafe_allow_html=True)
+            
+        # ==========================
+        # EXPANDER WITH PROBABILITIES
+        #  AND ALTERNATIVE SHAP PLOTS
+        # ==========================
+        with st.expander("🔍 Análisis complementario de grados de cerramiento alternativos"):
+            st.markdown(
+                """
+                <p style='font-size: 1.1rem; color: #556370; margin-bottom: 20px;'>
+                Probabilidades estimadas por el modelo y análisis de la contribución de las variables en los grados de cerramiento alternativos
+                mediante gráficos cascada (<i>waterfall plots</i>) de SHAP.
+                </p>
+                """, 
+                unsafe_allow_html=True
+            )
+            # ==========================
+            # PROBABILITIES
+            # ==========================
+            # Get probabilities for selected cc
+            probabilities = df_prob[df_prob[id_variable] == int(selected_cc)].drop(columns=[id_variable]).values.flatten().tolist()
+            total_prob = sum(probabilities)
+            # Barras de probabilidad
+            for i, prob in enumerate(probabilities):
+                prob_percentage = float(prob) * 100
+                ratio = (prob / total_prob * 100) if total_prob > 0 else (prob * 100)
+                
+                # Get class label and color
+                class_label = class_styles[i+1]["label"]
+                bar_color = class_styles[i+1]["hex_code"]
+                
+                if class_label == predicted_label:
+                    # Highlight text of predicted class
+                    text_style = f"font-weight: 800; color: {bar_color}; font-size: 1.15rem;"
+                    bg_bar_color = f"{bar_color}20" 
+                    label_display = f"🎯 {class_label}"
+                else:
+                    # Normal text
+                    text_style = f"font-weight: 500; color: #475569; font-size: 1.05rem;"
+                    bg_bar_color = "#f1f5f9"  
+                    label_display = class_label
+
+                # render progress bar
+                st.markdown(
+                    f"""
+                    <div style='
+                        display: flex;
+                        align-items: center;
+                        gap: 12px;
+                        margin-bottom: 10px;
+                    '>
+                        <!-- Etiqueta -->
+                        <div style='
+                            width: 140px;
+                            white-space: nowrap;
+                            {text_style}
+                        '>
+                            {label_display}
+                        </div>
+                        <!-- Barra -->
+                        <div style='
+                            flex: 1;
+                            background-color: {bg_bar_color};
+                            height: 10px;
+                            border-radius: 5px;
+                            overflow: hidden;
+                        '>
+                            <div style='
+                                width: {ratio}%;
+                                height: 100%;
+                                background-color: {bar_color};
+                                border-radius: 5px;
+                            '></div>
+                        </div>
+                        <!-- Porcentaje -->
+                        <div style='
+                            width: 55px;
+                            text-align: right;
+                            font-weight: 600;
+                            color: #475569;
+                        '>
+                            {prob_percentage:.1f}%
+                        </div>
+
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+                
+            st.markdown("</div>", unsafe_allow_html=True)
+
+            # =================================
+            # ALTERNATIVE SHAP WATERFALL PLOTS
+            # =================================
+                   
+            # Create a 2x2 matrix to display the four waterfall plots
+            fil_0 = st.columns(2)
+            fil_1 = st.columns(2)
+            cell = [fil_0[0], fil_0[1], fil_1[0], fil_1[1]]
+
+            # Loop to display the figures
+            for i, (fig, class_name) in enumerate(other_figs_shap):
+                if i >= len(cell):
+                    break
+                
+                # Get label styler
+                style_info = next(
+                    (info for info in class_styles.values() if info["label"] == class_name), 
+                    {"hex_code": "#31333F"}
+                )
+                current_color = style_info["hex_code"]
+                
+                # Color background
+                current_bg = f"rgba({int(current_color.lstrip('#')[0:2], 16)}, {int(current_color.lstrip('#')[2:4], 16)}, {int(current_color.lstrip('#')[4:6], 16)}, 0.08)"
+                # ----------------------------------------
+                with cell[i]:
+                    # Container for the figure
+                    with st.container(border=True):
+                        # Set the label as title
+                        st.markdown(
+                            f"""
+                            <div style='
+                                background-color: {current_bg}; 
+                                border-left: 5px solid {current_color}; 
+                                padding: 10px 14px; 
+                                border-radius: 6px;
+                                margin-bottom: 15px;
+                                text-align: left;
+                            '>
+                                <p style='margin: 2px 0 0 0; font-size: 1.2rem; font-weight: bold; color: {current_color};'>
+                                    {class_name}
+                                </p>
+                            </div>
+                            """, 
+                            unsafe_allow_html=True
+                        )
+                        # Display figure
+                        st.pyplot(fig, use_container_width=True, clear_figure=True)                       
     else:
         st.session_state["last_toasted_cc"] = None
         # Waiting message
@@ -770,7 +939,7 @@ def render_explainability_interface():
                 '>
                     <div style='font-size: 2.5rem; margin-bottom: 15px;'>📊</div>
                     <h3 style='color: #1e3d59; font-weight: 600; margin-bottom: 10px;'>
-                        PANEL DE EXPLICABILIDAD LOCAL CON SHAP
+                        PANEL DE EXPLICABILIDAD SHAP
                     </h3>
                     <p style='color: #555555; font-size: 1.1rem; max-width: 600px; margin: 0 auto; line-height: 1.6;'>
                         Haz clic en cualquier <b>complejo residencial</b> del mapa para cargar su análisis explicativo mediante SHAP.

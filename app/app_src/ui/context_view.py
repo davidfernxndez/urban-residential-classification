@@ -260,15 +260,15 @@ def render_context_view():
         <br><br>
         Los resultados de la experimentación han demostrado que <b>XGBoost</b> es el algoritmo más adecuado para este problema, obteniendo el mejor rendimiento y consiguiendo un elevado nivel de interpretabilidad mediante el uso de <b>SHAP</b>. Esta técnica de Inteligencia Artificial Explicable (post-hoc XAI) permite traducir las decisiones del modelo a explicaciones comprensibles y coherentes con el conocimiento del dominio.
         <br><br>
-        La plataforma desarrollada integra dos funcionalidades principales: una herramienta de análisis e interpretación de las predicciones generadas sobre el censo de complejos residenciales del área metropolitana de Granada y un entorno de inferencia orientado al estudio y evaluación de nuevos desarrollos urbanísticos.
+        La plataforma desarrollada integra dos funcionalidades principales: un entorno de análisis e interpretación de las predicciones realizadas sobre el censo de complejos residenciales del área metropolitana de Granada, y una herramienta de simulación orientada a la evaluación de nuevos escenarios urbanísticos.
         
         <div class="grid-2">
             <!-- COLUMN 1 -->
             <div class="col">
                 <div class="card-box">
-                    <div class="card-title">INTERFAZ DE EXPLICABILIDAD</div>
+                    <div class="card-title">🗺️ EXPLORADOR DE COMPLEJOS RESIDENCIALES</div>
                     <hr class="divider">
-                    Esta interfaz permite explorar las predicciones y explicaciones SHAP asociadas a todos los complejos residenciales incluidos en la base de datos.
+                    Esta interfaz permite explorar las predicciones y explicaciones SHAP de todos los complejos residenciales incluidos en la base de datos.
                     <br><br>
                     Para garantizar la validez de los resultados, se ha seguido una estrategia <i>out-of-fold</i>, asegurando que el modelo que predice y explica cada complejo residencial no ha utilizado previamente dicha muestra durante su entrenamiento.
                 </div>
@@ -276,11 +276,11 @@ def render_context_view():
             <!-- COLUMN 2 -->
             <div class="col">
                 <div class="card-box">
-                    <div class="card-title">INTERFAZ DE PREDICCIÓN</div>
+                    <div class="card-title">🏗️ SIMULADOR DE NUEVOS ESCENARIOS</div>
                     <hr class="divider">
-                    Esta interfaz actúa como una herramienta de inferencia basada en el modelo final XGBoost, entrenado sobre la totalidad de la base de datos.
+                    Esta interfaz actúa como un entorno de inferencia que utiliza el modelo XGBoost para estudiar el grado de cerramiento de nuevos desarrollos urbanísticos.
                     <br><br>
-                    La herramienta permite diseñar nuevos complejos residenciales, predecir su grado de cerramiento y analizar el impacto de las variables morfológicas urbanas en dicha clasificación mediante SHAP.
+                    La herramienta permite diseñar nuevos complejos residenciales, predecir su grado de cerramiento y analizar el impacto de las variables morfológicas urbanas en dicha clasificación mediante la explicabilidad proporcionada por SHAP.
                 </div>
             </div>
         </div>

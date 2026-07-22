@@ -25,8 +25,14 @@ class AppConfig:
     XGBOOST_DIR: Path = SHAP_LOCAL_DIR / "XGBoost"
 
     PRED_INFO_PATH = XGBOOST_DIR / "XGBoost_pred_info.csv"
+    PROB_PATH = XGBOOST_DIR / "XGBoost_probabilities.csv"
     SHAP_INFO_PATH = XGBOOST_DIR / "XGBoost_shap_info.csv"
     EXPECTED_VALUE_PATH = XGBOOST_DIR / "XGBoost_expected_shap_values.csv"
+
+    # CSS Style file
+    APP_DIR: Path = ROOT_DIR / "app"
+    ASSETS_DIR: Path = APP_DIR / "assets"
+    STYLE_PATH = ASSETS_DIR / "styles.css"
 
     ######################
     # DATASET INFORMATION

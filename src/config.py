@@ -33,8 +33,15 @@ class Config:
             3: "Autoaislado",
             4: "Individualista",
             5: "Simbólico"
-        })
-
+    })
+    TARGET_LABEL_LIST: list = field(default_factory=lambda: [
+            "Protegido",
+            "Controlado",
+            "Autoaislado",
+            "Individualista",
+            "Simbólico"
+    ])
+    
     ##########################
     # NESTED CROSS-VALIDATION
     ##########################

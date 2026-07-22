@@ -31,6 +31,9 @@ from sklearn.metrics import (
     classification_report
 )
 
+from src.config import cfg
+# Path to save images in PDF format
+OUTPUT_DIR = cfg.OUTPUT_DIR
 
 # ==============================================================================
 # PERFORMANCE EXPERIMENT USING NESTED CROSS VALIDATION
@@ -848,7 +851,7 @@ def performance_experiment_mlflow(
 # ANALYSIS OF RESULTS
 # ==============================================================================
 
-def analyze_global_performance(df, y_lim = [0.8, 1], metric_gain='f1_macro'):
+def analyze_global_performance(df, y_lim = [0.8, 1], metric_gain='f1_macro', save_image=False):
     """
     Generate performance summaries and visualizations for models evaluated
     using Nested Cross-Validation.
@@ -876,7 +879,9 @@ def analyze_global_performance(df, y_lim = [0.8, 1], metric_gain='f1_macro'):
 
     metric_gain: str [optional, default=f1_macro]
         Metric used in absolute differences heat map.
-        
+    save_image: bool [optional, default=False]
+        Indicates if figure is saved in pdf format
+
     Returns
     -------
     pandas.DataFrame
@@ -934,9 +939,12 @@ def analyze_global_performance(df, y_lim = [0.8, 1], metric_gain='f1_macro'):
         sharex=True           
     )
     fig.suptitle(
-        'Rendimiento medio en Nested Cross-Validation',
+        'Comparación del rendimiento medio',
         fontsize=16,
-        weight='bold'
+        weight='bold',
+        ha='left',
+        x=0.08,
+        y=0.98
     )
     # Bar plot with full y-axis scale
     ax1 = sns.barplot(
@@ -954,9 +962,12 @@ def analyze_global_performance(df, y_lim = [0.8, 1], metric_gain='f1_macro'):
 
     axes[0].set_title(
         'Vista a escala completa',
-        fontsize=13,
+        fontsize=14,
         color='dimgray',
-        weight='bold'
+        weight='bold',
+        ha="left",
+        x=0,
+        pad=10
     )
 
     axes[0].set_ylabel('Score (0-1)', fontsize=12)
@@ -985,9 +996,12 @@ def analyze_global_performance(df, y_lim = [0.8, 1], metric_gain='f1_macro'):
 
     axes[1].set_title(
         'Vista a escala detallada',
-        fontsize=13,
+        fontsize=14,
         color='dimgray',
-        weight='bold'
+        weight='bold',
+        ha="left",
+        x=0,
+        pad=10
     )
 
     axes[1].set_ylabel(f'Score ({y_lim[0]}-{y_lim[1]})', fontsize=12)
@@ -1020,6 +1034,9 @@ def analyze_global_performance(df, y_lim = [0.8, 1], metric_gain='f1_macro'):
     )
 
     plt.tight_layout(rect=[0, 0.06, 1, 1])
+    if save_image:
+        file_name = os.path.join(OUTPUT_DIR, "rendimiento_medio.pdf")
+        plt.savefig(file_name, format="pdf", bbox_inches="tight")
     plt.show()
 
     # ---------------------------------------------------------
@@ -1036,11 +1053,19 @@ def analyze_global_performance(df, y_lim = [0.8, 1], metric_gain='f1_macro'):
         linewidth = 1.2   
     )
 
-    ax_2.set_title('Distribución del rendimiento en Nested Cross Validation', fontsize=14, pad=15, weight='bold')
+    ax_2.set_title(
+        'Distribución del rendimiento en Nested Cross-Validation',
+        fontsize=16,
+        pad=15,
+        weight='bold',
+        ha='left',
+        x=0,
+        y=1.1,
+    )
     ax_2.text(
-        0.5, 0.98,
+        0.14, 1.05,
         'Vista a escala detallada',
-        fontsize=12,
+        fontsize=14,
         color='dimgray',
         weight='bold',
         ha="center",          
@@ -1066,6 +1091,9 @@ def analyze_global_performance(df, y_lim = [0.8, 1], metric_gain='f1_macro'):
     ax_2.spines['top'].set_visible(False)
     ax_2.spines['right'].set_visible(False)
     plt.tight_layout()
+    if save_image:
+        file_name = os.path.join(OUTPUT_DIR, "box_plot.pdf")
+        plt.savefig(file_name, format="pdf", bbox_inches="tight")
     plt.show() 
     
 
@@ -1127,12 +1155,15 @@ def analyze_global_performance(df, y_lim = [0.8, 1], metric_gain='f1_macro'):
         spine.set_visible(False)
 
     plt.tight_layout()
+    if save_image:
+        file_name = os.path.join(OUTPUT_DIR, "heatmap.pdf")
+        plt.savefig(file_name, format="pdf", bbox_inches="tight")
     plt.show()
 
     return table_df
 
 
-def plot_confusion_matrix(cm_df, label_map, model_name):
+def plot_confusion_matrix(cm_df, label_map, model_name, save_image=False):
     """
     Plot a normalized confusion matrix as a heatmap.
 
@@ -1151,7 +1182,9 @@ def plot_confusion_matrix(cm_df, label_map, model_name):
 
     model_name : str
         Name of the classification model. Displayed in the plot title.
-
+    
+    save_image: bool [optional, default=False]
+        Indicates if figure is saved in pdf format
     Returns
     -------
     None
@@ -1183,23 +1216,23 @@ def plot_confusion_matrix(cm_df, label_map, model_name):
         annot_kws={"size": 12}
     )
 
-    ax.set_title(
-        "Matriz de confusión out-of-fold normalizada",
-        fontsize=12,
-        fontweight="bold",
-        pad=25 
-    )
-    ax.text(
-        0.5, 1.02, 
+    plt.suptitle(
         f"{model_name.replace('_',' ')}",
-        fontsize=14,
-        fontweight="bold",
-        color="dimgray",  
-        ha="center",      
-        va="bottom",      
-        transform=ax.transAxes  
+        fontsize=16,
+        color="midnightblue", 
+        weight="bold",
+        x=0.27, 
+        y=0.97,
+        ha="left"
     )
-
+    plt.title(
+        r'Matriz de confusión out-of-fold normalizada',
+        fontsize=14,
+        pad=15,
+        weight="bold",
+        ha="left",
+        x=0
+    )
     ax.set_xlabel("Predicted Class", fontsize=12, labelpad=10)
     ax.set_ylabel("Actual Class", fontsize=12, labelpad=10)
 
@@ -1212,6 +1245,9 @@ def plot_confusion_matrix(cm_df, label_map, model_name):
         spine.set_visible(False)
 
     plt.tight_layout()
+    if save_image:
+        file_name = os.path.join(OUTPUT_DIR, f"matriz_{model_name}.pdf")
+        plt.savefig(file_name, format="pdf", bbox_inches="tight")
     plt.show()
 
 
@@ -1412,7 +1448,7 @@ def compare_class_metrics_detailed(df, model_A, model_B, label_map, y_lim=[0.5, 
     plt.show()
 
 
-def compare_class_metrics(df, model_A, model_B, label_map, y_lim=[0, 1]):
+def compare_class_metrics(df, model_A, model_B, label_map, y_lim=[0, 1], save_image=False):
     """
     Compare the class-wise performance of two models:
     - model_A represents a transparent (interpretable) model
@@ -1445,7 +1481,8 @@ def compare_class_metrics(df, model_A, model_B, label_map, y_lim=[0, 1]):
 
     y_lim : list of float [optional, default=[0.5, 1] ]
         Y-axis limits for the F1-score bar plot, defined as [min, max].
-
+    save_image: bool [optional, default=False]
+        Indicates if figure is saved in pdf format
     Returns
     -------
     None
@@ -1474,7 +1511,15 @@ def compare_class_metrics(df, model_A, model_B, label_map, y_lim=[0, 1]):
         edgecolor="black",
         linewidth = 1.2   
     )
-    plt.title('Comparativa de F1-Score por clase', fontsize=14, weight='bold', color='black')
+    plt.title(
+        'Comparativa de F1-Score por grado de cerramiento',
+        fontsize=14,
+        weight='bold',
+        color='black',
+        pad=15,
+        ha='left',
+        x=0,
+        y=1)
     plt.ylabel('F1-Score', fontsize=12, labelpad=10, color='black')
     plt.xlabel('Grado de cerramiento', fontsize=12, labelpad=10, color='black')
     plt.ylim(y_lim[0], y_lim[1])
@@ -1494,6 +1539,9 @@ def compare_class_metrics(df, model_A, model_B, label_map, y_lim=[0, 1]):
     ax_1.spines['top'].set_visible(False)
     ax_1.spines['right'].set_visible(False)
     plt.tight_layout()
+    if save_image:
+        file_name = os.path.join(OUTPUT_DIR, f"barras_{model_A}_vs_{model_B}.pdf")
+        plt.savefig(file_name, format="pdf", bbox_inches="tight")
     plt.show()  
 
 
@@ -1551,4 +1599,7 @@ def compare_class_metrics(df, model_A, model_B, label_map, y_lim=[0, 1]):
         spine.set_visible(False)
 
     plt.tight_layout()
+    if save_image:
+        file_name = os.path.join(OUTPUT_DIR, f"heatmap_{model_A}_vs_{model_B}.pdf")
+        plt.savefig(file_name, format="pdf", bbox_inches="tight")
     plt.show()

@@ -137,22 +137,27 @@ def load_shap_data() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     pred_info_df: pandas.DataFrame:
         Out-of-fold predictions for all samples across all folds, including 
         true targets, predicted classes, maximum probabilities, and fold indices.
-
+    
+    prob_df: pandas.DataFrame:
+        Out-of-fold probabilites for all samples across all classes.
+    
     shap_info_df: pandas.DataFrame:
         Out-of-fold shap values for all samples across all folds.
     """    
     expected_val_path = config.EXPECTED_VALUE_PATH
     pred_info_path = config.PRED_INFO_PATH
+    prob_path = config.PROB_PATH
     shap_info_path = config.SHAP_INFO_PATH
     
-    for p in [expected_val_path, pred_info_path, shap_info_path]:
+    for p in [expected_val_path, pred_info_path, prob_path, shap_info_path]:
         if not os.path.exists(p):
             st.error(f"File not found in: {p}")
-            return pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
+            return pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
             
     # Read dataframes
     expected_value_df = pd.read_csv(expected_val_path)
     pred_info_df = pd.read_csv(pred_info_path)
+    prob_df = pd.read_csv(prob_path)
     shap_info_df = pd.read_csv(shap_info_path)
     
-    return expected_value_df, pred_info_df, shap_info_df
+    return expected_value_df, pred_info_df, prob_df, shap_info_df
