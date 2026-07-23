@@ -144,7 +144,8 @@ def custom_instance():
                 options=[
                     ("PPU", "Dominio público y de uso público (PPU)"),
                     ("PRE", "Dominio privado de uso público restringido (PRE)"),
-                    ("PPR", "Dominio privado de uso privado (PPR)")
+                    ("PPR", "Dominio privado de uso privado (PPR)"),
+                    ("NINGUNO", "No tiene viales")
                 ],
                 format_func=lambda x: x[1]
             )
