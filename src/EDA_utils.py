@@ -30,15 +30,13 @@ from src.config import cfg
 OUTPUT_DIR = cfg.OUTPUT_DIR
 
  
-
-def plot_individual_sample_map(config, map_df, id_sample, half_side=150, figsize=(14, 7), save_image=False):
+def plot_individual_sample_map(config, map_df, id_sample, half_side=150, figsize=(5, 5), save_image=False):
     """
-    Plots a dual-panel map visualization for a specific residential complex sample.
+    Plots a  map visualization for a specific residential complex sample indicated by
+    `id_sample'
 
     This method generates a side-by-side comparison of the residential complex indicated 
-    by `id_sample`. The left panel displays a satellite view (Esri World Imagery) and 
-    the right panel displays a street map view (OpenStreetMap), both synchronized 
-    with the same spatial extent and center.
+    by `id_sample`.
 
     The "EPSG:25830" coordinate system from GeoPandas is used, which georeferences 
     the ETRS89 / UTM zone 30N system. The coordinates used are:
@@ -73,7 +71,7 @@ def plot_individual_sample_map(config, map_df, id_sample, half_side=150, figsize
     Returns
     -------
     None
-        Displays the dual-panel map visualization using matplotlib.pyplot.show().
+        Displays the map visualization using matplotlib.pyplot.show().
     """
     # =========================================================
     # LOAD CONFIGURATION VARIABLES
@@ -107,14 +105,10 @@ def plot_individual_sample_map(config, map_df, id_sample, half_side=150, figsize
     gdf = gdf.to_crs(epsg=3857)
 
     # =========================================================
-    # CREATE FIGURE WITH SIDE-BY-SIDE SUBPLOTS
+    # CREATE FIGURE AND PLOT SAMPLES 
     # =========================================================
-    # Share axes to apply same zoom to both maps
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=figsize, sharex=True, sharey=True)
-    
-    # Plot in both maps
-    gdf.plot(ax=ax1, marker='v', color='red', edgecolor='white', markersize=150, zorder=5)
-    gdf.plot(ax=ax2, marker='v', color='red', edgecolor='white', markersize=150, zorder=5)
+    fig, ax = plt.subplots(figsize=figsize)
+    gdf.plot(ax=ax, marker='v', color='red', edgecolor='white', markersize=150, zorder=5)
     
     # =========================================================
     # ADJUST ZOOM 
@@ -122,21 +116,14 @@ def plot_individual_sample_map(config, map_df, id_sample, half_side=150, figsize
     xmin, ymin, xmax, ymax = gdf.total_bounds
     cx = (xmin + xmax) / 2
     cy = (ymin + ymax) / 2
-    ax1.set_xlim(cx - half_side, cx + half_side)
-    ax1.set_ylim(cy - half_side, cy + half_side)
+    ax.set_xlim(cx - half_side, cx + half_side)
+    ax.set_ylim(cy - half_side, cy + half_side)
 
     # =========================================================
-    # BASEMAPS
+    # BASEMAP: Satelite View
     # =========================================================
-    # Satelite view
-    ctx.add_basemap(ax1, source=ctx.providers.Esri.WorldImagery, attribution="")
-    ax1.set_title("Vista Satélite", fontsize=14, color="dimgray", fontweight="bold", pad=8)
-    ax1.set_axis_off() 
-
-    # Street Map View
-    ctx.add_basemap(ax2, source=ctx.providers.OpenStreetMap.Mapnik, attribution="")
-    ax2.set_title("Vista Street Map", fontsize=14, color="dimgray", fontweight="bold", pad=8)
-    ax2.set_axis_off() 
+    ctx.add_basemap(ax, source=ctx.providers.Esri.WorldImagery, attribution="")
+    ax.set_axis_off() 
 
     # =========================================================
     # GLOBAL TITLE & LAYOUT TUNING
@@ -144,14 +131,24 @@ def plot_individual_sample_map(config, map_df, id_sample, half_side=150, figsize
     municipality_name = mun.replace('_', ' ').upper()
     
     fig.suptitle(
-        f"Complejo residencial ''{target_label}'' ({municipality_name}, CC = {id_sample})",
-        fontsize=14,
-        fontweight="bold",
-        y=0.95 
+        f"Complejo residencial {target_label}",
+        fontsize=13,
+        color="black", 
+        x=0.08, 
+        y=1,
+        ha="left"
     )
-
+    fig.text(
+        x=0.08,        
+        y=0.93,        
+        s=f"Municipio: {municipality_name}, CC: {id_sample}",
+        fontsize=10,
+        color="dimgray",
+        fontweight="bold",
+        ha="left"
+    )
     # Show image
-    fig.subplots_adjust(top=0.9)
+    plt.tight_layout()
     if save_image:
         file_name = os.path.join(OUTPUT_DIR, f"MAP_{target_label}_{id_sample}.pdf")
         plt.savefig(file_name, format="pdf", bbox_inches="tight")
@@ -477,7 +474,7 @@ def plot_univariate_distribution(
         show_values = True,
         dict_label=None,
         order=None,
-        figsize=(10,6),
+        figsize=(8,6),
         save_image=False
     ):
     """
