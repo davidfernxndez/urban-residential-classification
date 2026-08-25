@@ -1,14 +1,13 @@
-# pyproject.toml
 [build-system]
 requires = ["setuptools>=61.0.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "tfm"
+name = "urban-typology-xai"
 version = "0.1.0"
-description = "Urban Analysis Using Supervised Machine Learning"
+description = "Explainable machine learning for the classification of residential enclosure patterns"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 
 [tool.setuptools]
-packages = ["src"]      
+packages = ["src"]
